@@ -1,0 +1,14 @@
+node_modules
+.pnpm-store
+.next
+out
+dist
+coverage
+playwright-report
+test-results
+.env
+.env.*
+!.env.example
+.vercel
+.DS_Store
+*.log
