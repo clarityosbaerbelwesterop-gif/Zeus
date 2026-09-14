@@ -145,10 +145,11 @@ export async function sendMessage(conversationId: string, content: string) {
   return withActor(account.user.id, async (db) => {
     const conversation = (await db.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1))[0];
     if (!conversation) throw new Error("Conversation not found.");
-    const [{ value: recent }] = await db
+    const [recentRow] = await db
       .select({ value: count() })
       .from(messages)
       .where(and(eq(messages.authorId, account.user.id), gte(messages.createdAt, new Date(Date.now() - 60_000))));
+    const recent = recentRow?.value ?? 0;
     if (recent >= 30) throw new Error("Message rate limit reached. Try again in a minute.");
 
     await db.insert(messages).values({ conversationId, authorId: account.user.id, role: "user", content: text });
