@@ -1,2 +1,2 @@
-export { closeDatabase, withActor, type ActorDatabase } from "./client.js";
-export * from "./schema.js";
+export { closeDatabase, withActor, type ActorDatabase } from "./client";
+export * from "./schema";
