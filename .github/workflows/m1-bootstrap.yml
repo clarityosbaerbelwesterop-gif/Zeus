@@ -1,0 +1,39 @@
+name: M1 Bootstrap Verify
+
+on:
+  push:
+    branches: [product/m1-foundation]
+
+permissions:
+  contents: write
+
+env:
+  NEON_AUTH_BASE_URL: https://auth.example.invalid/zeus/auth
+  NEON_AUTH_COOKIE_SECRET: ci-cookie-secret-that-is-longer-than-thirty-two-characters
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/zeus
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: product/m1-foundation
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm format:write
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Commit lockfile and normalized formatting
+        run: |
+          if git diff --quiet && git diff --cached --quiet && [ -z "$(git status --porcelain)" ]; then exit 0; fi
+          git config user.name zeus-product-bot
+          git config user.email actions@users.noreply.github.com
+          git add pnpm-lock.yaml .
+          git commit -m "chore: lock and normalize M1 foundation"
+          git push origin HEAD:product/m1-foundation
