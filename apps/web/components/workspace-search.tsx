@@ -39,7 +39,9 @@ export function SearchView({ data }: { data: WorkspacePageData }) {
           <div className="space-y-5">
             {[...groups.entries()].map(([type, results]) => (
               <section key={type}>
-                <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">{type}</p>
+                <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                  {type}
+                </p>
                 <div className="space-y-2">
                   {results.map((result) => (
                     <SearchResult key={`${result.type}:${result.id}`} result={result} />
@@ -48,7 +50,10 @@ export function SearchView({ data }: { data: WorkspacePageData }) {
               </section>
             ))}
             {!data.searchResults.length ? (
-              <EmptyState title="No workspace matches" detail="Try a different phrase. Search is bounded and server-side." />
+              <EmptyState
+                title="No workspace matches"
+                detail="Try a different phrase. Search is bounded and server-side."
+              />
             ) : null}
           </div>
 

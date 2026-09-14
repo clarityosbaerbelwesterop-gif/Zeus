@@ -84,7 +84,9 @@ export function SearchResult({ result }: { result: WorkspaceSearchItem }) {
     >
       <div className="flex items-center justify-between gap-3">
         <p className="truncate text-sm font-medium">{result.title}</p>
-        <span className="text-[10px] uppercase tracking-wider text-[var(--muted)]">{result.type}</span>
+        <span className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
+          {result.type}
+        </span>
       </div>
       <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--muted)]">{result.detail}</p>
     </Link>

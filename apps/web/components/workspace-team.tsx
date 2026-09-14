@@ -34,7 +34,11 @@ export function TeamView({
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <AgentMark
-                    agent={{ code: agent.code as AgentCode, name: agent.name, accent: agent.accent }}
+                    agent={{
+                      code: agent.code as AgentCode,
+                      name: agent.name,
+                      accent: agent.accent,
+                    }}
                     size={42}
                   />
                   <div>
@@ -49,7 +53,9 @@ export function TeamView({
               <p className="mt-4 min-h-12 text-sm leading-6 text-[var(--muted)]">{agent.purpose}</p>
               {agent.currentRun ? (
                 <div className="mt-4 rounded-xl bg-white/55 p-3">
-                  <p className="text-[11px] uppercase tracking-wider text-[var(--muted)]">Current task</p>
+                  <p className="text-[11px] uppercase tracking-wider text-[var(--muted)]">
+                    Current task
+                  </p>
                   <p className="mt-1 line-clamp-2 text-sm">{agent.currentRun.objective}</p>
                 </div>
               ) : null}
@@ -78,10 +84,14 @@ export function TeamView({
         })}
       </div>
 
-      <section id="team-chat" className="mt-8 rounded-[22px] border border-[var(--line)] bg-white/35 p-5">
+      <section
+        id="team-chat"
+        className="mt-8 rounded-[22px] border border-[var(--line)] bg-white/35 p-5"
+      >
         <h2 className="text-lg font-semibold">Team conversations</h2>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Participants are persisted explicitly so every future agent message can carry a real identity.
+          Participants are persisted explicitly so every future agent message can carry a real
+          identity.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {data.conversations
@@ -105,7 +115,9 @@ export function TeamView({
               placeholder="Launch planning"
               className="min-w-0 flex-1 rounded-xl border border-[var(--line)] bg-white/55 px-3 py-2 text-sm"
             />
-            <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">Create</button>
+            <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">
+              Create
+            </button>
           </form>
         ) : null}
       </section>
@@ -116,7 +128,9 @@ export function TeamView({
 export function participantNames(data: WorkspacePageData, conversationId: string): string {
   return data.participants
     .filter((participant) => participant.conversationId === conversationId)
-    .map((participant) => AGENT_TEMPLATES.find((agent) => agent.code === participant.agentCode)?.name)
+    .map(
+      (participant) => AGENT_TEMPLATES.find((agent) => agent.code === participant.agentCode)?.name,
+    )
     .filter((value): value is string => Boolean(value))
     .join(", ");
 }

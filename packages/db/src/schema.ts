@@ -285,7 +285,9 @@ export const artifacts = zeus.table("artifacts", {
     .references(() => workspaces.id, { onDelete: "cascade" }),
   runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
   taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
-  conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
+  conversationId: uuid("conversation_id").references(() => conversations.id, {
+    onDelete: "set null",
+  }),
   title: text("title").notNull(),
   kind: text("kind").notNull(),
   mimeType: text("mime_type"),

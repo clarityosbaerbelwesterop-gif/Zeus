@@ -67,7 +67,9 @@ export function TasksView({ data, canWrite }: { data: WorkspacePageData; canWrit
                 </option>
               ))}
           </select>
-          <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">Create</button>
+          <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">
+            Create
+          </button>
         </form>
       ) : null}
 
@@ -75,9 +77,14 @@ export function TasksView({ data, canWrite }: { data: WorkspacePageData; canWrit
         <>
           <div className="task-board grid gap-3 xl:grid-cols-6">
             {columns.map((column) => (
-              <section key={column.status} className="min-w-0 rounded-2xl border border-[var(--line)] bg-white/25 p-3">
+              <section
+                key={column.status}
+                className="min-w-0 rounded-2xl border border-[var(--line)] bg-white/25 p-3"
+              >
                 <div className="mb-3 flex items-center justify-between">
-                  <h2 className="text-xs font-semibold uppercase tracking-[0.1em]">{column.label}</h2>
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.1em]">
+                    {column.label}
+                  </h2>
                   <span className="text-xs text-[var(--muted)]">
                     {data.tasks.filter((task) => task.status === column.status).length}
                   </span>
@@ -109,19 +116,26 @@ export function TasksView({ data, canWrite }: { data: WorkspacePageData; canWrit
                 >
                   <div>
                     <p className="text-sm font-medium">{task.title}</p>
-                    <p className="text-xs text-[var(--muted)]">{task.assignedAgent ?? "Unassigned"}</p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {task.assignedAgent ?? "Unassigned"}
+                    </p>
                   </div>
                   <span className="text-xs capitalize text-[var(--muted)]">
                     {task.status.replaceAll("_", " ")}
                   </span>
-                  <span className="text-xs uppercase tracking-wider text-[var(--muted)]">{task.priority}</span>
+                  <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
+                    {task.priority}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </>
       ) : (
-        <EmptyState title="No tasks yet" detail="Create a task or ask Jorge to organize the work." />
+        <EmptyState
+          title="No tasks yet"
+          detail="Create a task or ask Jorge to organize the work."
+        />
       )}
     </div>
   );
@@ -142,13 +156,18 @@ function TaskCard({
     <div className="rounded-xl border border-[var(--line)] bg-white/65 p-3">
       <p className="text-sm font-medium leading-5">{task.title}</p>
       {task.description ? (
-        <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--muted)]">{task.description}</p>
+        <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--muted)]">
+          {task.description}
+        </p>
       ) : null}
       <p className="mt-2 text-[11px] uppercase tracking-wider text-[var(--muted)]">
         {task.assignedAgent ?? "unassigned"} · {task.priority}
       </p>
       {canWrite ? (
-        <form action={updateTaskAction} className="mt-3 space-y-2 border-t border-[var(--line)] pt-3">
+        <form
+          action={updateTaskAction}
+          className="mt-3 space-y-2 border-t border-[var(--line)] pt-3"
+        >
           <input type="hidden" name="workspaceId" value={workspaceId} />
           <input type="hidden" name="taskId" value={task.id} />
           <input type="hidden" name="title" value={task.title} />

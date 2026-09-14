@@ -46,7 +46,8 @@ export const ARTIFACT_TYPES = [
 ] as const;
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
 
-export type AgentPresence = "idle" | "thinking" | "working" | "waiting" | "blocked" | "completed" | "offline";
+export type AgentPresence =
+  "idle" | "thinking" | "working" | "waiting" | "blocked" | "completed" | "offline";
 
 export type WorkspaceCapability =
   | "workspace.read"
@@ -205,12 +206,19 @@ export function safeFileName(input: string): string {
   if (normalized === "." || normalized === ".." || normalized.startsWith(".")) {
     throw new Error("Hidden or traversal filenames are not allowed.");
   }
-  const extension = normalized.includes(".") ? (normalized.split(".").pop()?.toLowerCase() ?? "") : "";
-  if (blockedUploadExtensions.has(extension)) throw new Error("Executable uploads are not allowed.");
+  const extension = normalized.includes(".")
+    ? (normalized.split(".").pop()?.toLowerCase() ?? "")
+    : "";
+  if (blockedUploadExtensions.has(extension))
+    throw new Error("Executable uploads are not allowed.");
   return normalized;
 }
 
-export function validateUpload(input: { filename: string; contentType: string; size: number }): string {
+export function validateUpload(input: {
+  filename: string;
+  contentType: string;
+  size: number;
+}): string {
   const filename = safeFileName(input.filename);
   if (!Number.isSafeInteger(input.size) || input.size < 0 || input.size > MAX_INLINE_FILE_BYTES) {
     throw new Error(`Files must be at most ${MAX_INLINE_FILE_BYTES} bytes.`);

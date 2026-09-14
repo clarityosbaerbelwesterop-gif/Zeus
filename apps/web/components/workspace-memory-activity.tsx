@@ -62,7 +62,10 @@ export function MemoryView({ data, canWrite }: { data: WorkspacePageData; canWri
             />
           ))}
           {!data.decisions.length ? (
-            <EmptyState title="No decisions yet" detail="Record important choices and why they were made." />
+            <EmptyState
+              title="No decisions yet"
+              detail="Record important choices and why they were made."
+            />
           ) : null}
         </div>
       </section>
@@ -79,7 +82,10 @@ export function MemoryView({ data, canWrite }: { data: WorkspacePageData; canWri
             />
           ))}
           {!nonDecisions.length ? (
-            <EmptyState title="No memory yet" detail="Store important project decisions and constraints." />
+            <EmptyState
+              title="No memory yet"
+              detail="Store important project decisions and constraints."
+            />
           ) : null}
         </div>
       </section>
@@ -107,7 +113,9 @@ function MemoryCard({
         </div>
         <span className="text-[11px] text-[var(--muted)]">{timeLabel(memory.updatedAt)}</span>
       </div>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">{memory.content}</p>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--muted)]">
+        {memory.content}
+      </p>
       {memory.sourceType ? (
         <p className="mt-2 text-[11px] text-[var(--muted)]">
           Source: {memory.sourceType}
@@ -118,7 +126,9 @@ function MemoryCard({
         <form action={archiveMemoryAction} className="mt-3">
           <input type="hidden" name="workspaceId" value={workspaceId} />
           <input type="hidden" name="memoryId" value={memory.id} />
-          <button className="text-xs text-[var(--muted)] underline underline-offset-4">Archive</button>
+          <button className="text-xs text-[var(--muted)] underline underline-offset-4">
+            Archive
+          </button>
         </form>
       ) : null}
     </article>
@@ -147,12 +157,17 @@ export function ActivityView({ data }: { data: WorkspacePageData }) {
                 {event.actorType}
                 {event.actorId ? ` · ${event.actorId.slice(0, 12)}` : ""} · {event.entityType}
               </p>
-              {detail ? <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{detail}</p> : null}
+              {detail ? (
+                <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{detail}</p>
+              ) : null}
             </div>
           );
         })}
         {!data.activity.length ? (
-          <EmptyState title="No activity yet" detail="Workspace events will appear as real work happens." />
+          <EmptyState
+            title="No activity yet"
+            detail="Workspace events will appear as real work happens."
+          />
         ) : null}
       </div>
     </div>

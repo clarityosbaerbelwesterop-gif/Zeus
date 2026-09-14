@@ -21,8 +21,12 @@ export function FilesView({ data, canWrite }: { data: WorkspacePageData; canWrit
         >
           <input type="hidden" name="workspaceId" value={workspace.id} />
           <input required type="file" name="file" className="min-w-0 flex-1 text-sm" />
-          <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">Upload</button>
-          <span className="text-xs text-[var(--muted)]">Max 1 MiB in M2 · executable binaries blocked</span>
+          <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">
+            Upload
+          </button>
+          <span className="text-xs text-[var(--muted)]">
+            Max 1 MiB in M2 · executable binaries blocked
+          </span>
         </form>
       ) : null}
 
@@ -35,10 +39,14 @@ export function FilesView({ data, canWrite }: { data: WorkspacePageData; canWrit
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{file.filename}</p>
               <p className="mt-1 text-xs text-[var(--muted)]">
-                {file.contentType} · {file.size.toLocaleString()} bytes · SHA-256 {file.checksum.slice(0, 12)}…
+                {file.contentType} · {file.size.toLocaleString()} bytes · SHA-256{" "}
+                {file.checksum.slice(0, 12)}…
               </p>
             </div>
-            <a href={`/api/files/${file.id}`} className="text-xs font-medium underline underline-offset-4">
+            <a
+              href={`/api/files/${file.id}`}
+              className="text-xs font-medium underline underline-offset-4"
+            >
               Download
             </a>
           </div>
@@ -128,27 +136,40 @@ export function ArtifactsView({ data, canWrite }: { data: WorkspacePageData; can
 
       <div className="grid gap-3 sm:grid-cols-2">
         {data.artifacts.map((artifact) => (
-          <article key={artifact.id} className="rounded-[20px] border border-[var(--line)] bg-white/40 p-4">
+          <article
+            key={artifact.id}
+            className="rounded-[20px] border border-[var(--line)] bg-white/40 p-4"
+          >
             <p className="text-sm font-semibold">{artifact.title}</p>
             <p className="mt-2 text-xs text-[var(--muted)]">
               {artifact.creatingAgent ?? "User"} · {artifact.kind}
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">
-              {artifact.mimeType ?? artifact.contentType ?? "No preview type"} · {timeLabel(artifact.createdAt)}
+              {artifact.mimeType ?? artifact.contentType ?? "No preview type"} ·{" "}
+              {timeLabel(artifact.createdAt)}
             </p>
             {artifact.runId ? (
-              <p className="mt-3 text-[11px] text-[var(--muted)]">Run {artifact.runId.slice(0, 8)}…</p>
+              <p className="mt-3 text-[11px] text-[var(--muted)]">
+                Run {artifact.runId.slice(0, 8)}…
+              </p>
             ) : null}
             {artifact.taskId ? (
-              <p className="mt-1 text-[11px] text-[var(--muted)]">Task {artifact.taskId.slice(0, 8)}…</p>
+              <p className="mt-1 text-[11px] text-[var(--muted)]">
+                Task {artifact.taskId.slice(0, 8)}…
+              </p>
             ) : null}
             {artifact.storageKey ? (
-              <p className="mt-3 break-all text-[11px] text-[var(--muted)]">{artifact.storageKey}</p>
+              <p className="mt-3 break-all text-[11px] text-[var(--muted)]">
+                {artifact.storageKey}
+              </p>
             ) : null}
           </article>
         ))}
         {!data.artifacts.length ? (
-          <EmptyState title="No artifacts yet" detail="Outputs created by your agents will appear here." />
+          <EmptyState
+            title="No artifacts yet"
+            detail="Outputs created by your agents will appear here."
+          />
         ) : null}
       </div>
     </div>

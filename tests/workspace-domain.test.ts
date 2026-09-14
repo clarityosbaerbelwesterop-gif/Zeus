@@ -49,7 +49,14 @@ describe("Workspace OS task lifecycle", () => {
 
 describe("Workspace OS memory and plans", () => {
   it("accepts only explicit durable memory classes", () => {
-    for (const type of ["goal", "decision", "fact", "preference", "constraint", "project_context"]) {
+    for (const type of [
+      "goal",
+      "decision",
+      "fact",
+      "preference",
+      "constraint",
+      "project_context",
+    ]) {
       expect(isMemoryType(type)).toBe(true);
     }
     expect(isMemoryType("raw_chat_dump")).toBe(false);
@@ -110,7 +117,11 @@ describe("Workspace OS file security", () => {
       }),
     ).toThrow(/at most/iu);
     expect(() =>
-      validateUpload({ filename: "payload.bin", contentType: "application/x-msdownload", size: 20 }),
+      validateUpload({
+        filename: "payload.bin",
+        contentType: "application/x-msdownload",
+        size: 20,
+      }),
     ).toThrow(/Unsupported/iu);
   });
 

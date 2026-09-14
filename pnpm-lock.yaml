@@ -61,6 +61,9 @@ importers:
       "@zeus/shared":
         specifier: workspace:*
         version: link:../../packages/shared
+      "@zeus/workspace":
+        specifier: workspace:*
+        version: link:../../packages/workspace
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@types/pg@8.23.1)(kysely@0.29.5)(pg@8.23.0)
@@ -162,6 +165,12 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
+
+  packages/workspace:
+    dependencies:
+      "@zeus/agents":
+        specifier: workspace:*
+        version: link:../agents
 
 packages:
   "@alloc/quick-lru@5.3.0":

@@ -77,7 +77,9 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
                 key={item.id}
                 href={workspaceHref(item.id)}
                 className={`block rounded-lg px-3 py-2 text-sm ${
-                  item.id === workspace.id ? "bg-white font-medium" : "text-[var(--muted)] hover:bg-white/60"
+                  item.id === workspace.id
+                    ? "bg-white font-medium"
+                    : "text-[var(--muted)] hover:bg-white/60"
                 }`}
               >
                 {item.name}
@@ -108,7 +110,11 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
         </form>
 
         <nav className="sidebar-nav space-y-1">
-          <SidebarLink href={workspaceHref(workspace.id)} active={selectedView === "home"} label="Home" />
+          <SidebarLink
+            href={workspaceHref(workspace.id)}
+            active={selectedView === "home"}
+            label="Home"
+          />
           <SidebarLink
             href={workspaceHref(workspace.id, "team")}
             active={selectedView === "team"}
@@ -161,7 +167,11 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
                   className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-white/55"
                 >
                   <AgentMark
-                    agent={{ code: agent.code as AgentCode, name: agent.name, accent: agent.accent }}
+                    agent={{
+                      code: agent.code as AgentCode,
+                      name: agent.name,
+                      accent: agent.accent,
+                    }}
                     size={30}
                   />
                   <span className="sidebar-label min-w-0">
@@ -198,7 +208,7 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
             <p className="truncate text-xs text-[var(--muted)]">
               {data.activeConversation
                 ? `${data.activeConversation.title}${participantNames(data, data.activeConversation.id) ? ` · ${participantNames(data, data.activeConversation.id)}` : ""}`
-                : viewLabels[selectedView] ?? "Workspace"}
+                : (viewLabels[selectedView] ?? "Workspace")}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -257,7 +267,11 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
               <div key={agent.code} className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                   <AgentMark
-                    agent={{ code: agent.code as AgentCode, name: agent.name, accent: agent.accent }}
+                    agent={{
+                      code: agent.code as AgentCode,
+                      name: agent.name,
+                      accent: agent.accent,
+                    }}
                     size={28}
                   />
                   <span className="truncate text-sm">{agent.name}</span>
@@ -267,7 +281,9 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
             ))}
         </div>
         <div className="mt-8 border-t border-[var(--line)] pt-5">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">Recent activity</p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+            Recent activity
+          </p>
           <div className="mt-4 space-y-4">
             {data.activity.slice(0, 5).map((event) => (
               <div key={event.id}>
@@ -276,7 +292,9 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
               </div>
             ))}
             {!data.activity.length ? (
-              <p className="text-xs leading-5 text-[var(--muted)]">Real workspace events will appear here.</p>
+              <p className="text-xs leading-5 text-[var(--muted)]">
+                Real workspace events will appear here.
+              </p>
             ) : null}
           </div>
         </div>

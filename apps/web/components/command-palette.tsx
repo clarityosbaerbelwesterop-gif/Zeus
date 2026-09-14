@@ -59,7 +59,10 @@ export function CommandPalette({ workspaceId, agents }: CommandPaletteProps) {
         ⌘K
       </button>
       {open ? (
-        <div className="command-backdrop fixed inset-0 z-50 grid place-items-start bg-black/20 px-4 pt-[12vh]" onMouseDown={() => setOpen(false)}>
+        <div
+          className="command-backdrop fixed inset-0 z-50 grid place-items-start bg-black/20 px-4 pt-[12vh]"
+          onMouseDown={() => setOpen(false)}
+        >
           <div
             className="w-full max-w-xl overflow-hidden rounded-[22px] border border-[var(--line)] bg-[var(--paper)] shadow-2xl"
             onMouseDown={(event) => event.stopPropagation()}
@@ -87,7 +90,9 @@ export function CommandPalette({ workspaceId, agents }: CommandPaletteProps) {
                   </Link>
                 ))
               ) : (
-                <p className="px-3 py-8 text-center text-sm text-[var(--muted)]">No matching command.</p>
+                <p className="px-3 py-8 text-center text-sm text-[var(--muted)]">
+                  No matching command.
+                </p>
               )}
             </div>
           </div>

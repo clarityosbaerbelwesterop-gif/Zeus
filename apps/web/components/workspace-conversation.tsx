@@ -37,7 +37,7 @@ export function ConversationView({ data }: { data: WorkspacePageData }) {
             const label =
               message.role === "user"
                 ? "You"
-                : template?.name ?? (message.role === "system" ? "Zeus" : "Agent");
+                : (template?.name ?? (message.role === "system" ? "Zeus" : "Agent"));
             return (
               <article
                 key={message.id}

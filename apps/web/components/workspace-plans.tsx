@@ -68,9 +68,13 @@ export function PlansView({ data, canWrite }: { data: WorkspacePageData; canWrit
         <section className="soft-panel rounded-[22px] p-5">
           {data.activePlan ? (
             <>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">Current plan</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                Current plan
+              </p>
               <h2 className="mt-1 text-2xl font-semibold">{data.activePlan.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{data.activePlan.objective}</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                {data.activePlan.objective}
+              </p>
               <div className="mt-6 space-y-3">
                 {data.planSteps.map((step) => (
                   <div
@@ -94,7 +98,10 @@ export function PlansView({ data, canWrite }: { data: WorkspacePageData; canWrit
               </div>
 
               {canWrite ? (
-                <form action={addPlanStepAction} className="mt-5 grid gap-2 sm:grid-cols-[1fr_.7fr_auto]">
+                <form
+                  action={addPlanStepAction}
+                  className="mt-5 grid gap-2 sm:grid-cols-[1fr_.7fr_auto]"
+                >
                   <input type="hidden" name="workspaceId" value={workspace.id} />
                   <input type="hidden" name="planId" value={data.activePlan.id} />
                   <input
@@ -118,7 +125,9 @@ export function PlansView({ data, canWrite }: { data: WorkspacePageData; canWrit
                         </option>
                       ))}
                   </select>
-                  <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">Add</button>
+                  <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">
+                    Add
+                  </button>
                 </form>
               ) : null}
             </>

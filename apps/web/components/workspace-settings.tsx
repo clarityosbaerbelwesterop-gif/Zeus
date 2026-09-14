@@ -7,13 +7,7 @@ import {
 import type { WorkspacePageData } from "@/lib/product";
 import { SectionHeader } from "./workspace-ui";
 
-export function SettingsView({
-  data,
-  canManage,
-}: {
-  data: WorkspacePageData;
-  canManage: boolean;
-}) {
+export function SettingsView({ data, canManage }: { data: WorkspacePageData; canManage: boolean }) {
   const workspace = data.activeWorkspace;
   if (!workspace) return null;
 
@@ -113,7 +107,9 @@ export function SettingsView({
         </label>
         {canManage ? (
           <div className="flex items-end">
-            <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">Save workspace</button>
+            <button className="rounded-xl bg-[var(--ink)] px-4 py-2 text-sm text-white">
+              Save workspace
+            </button>
           </div>
         ) : null}
       </form>
@@ -147,7 +143,9 @@ export function SettingsView({
                     <option value="member">member</option>
                     <option value="viewer">viewer</option>
                   </select>
-                  <button className="rounded-xl border border-[var(--line)] px-3 py-2 text-xs">Update</button>
+                  <button className="rounded-xl border border-[var(--line)] px-3 py-2 text-xs">
+                    Update
+                  </button>
                 </form>
               ) : (
                 <span className="text-xs uppercase text-[var(--muted)]">{member.role}</span>
@@ -171,7 +169,9 @@ export function SettingsView({
               placeholder={`Type ${workspace.name}`}
               className="min-w-0 flex-1 rounded-xl border border-[#d7c1bb] bg-white px-3 py-2 text-sm"
             />
-            <button className="rounded-xl border border-[#b98e82] px-4 py-2 text-sm">Archive workspace</button>
+            <button className="rounded-xl border border-[#b98e82] px-4 py-2 text-sm">
+              Archive workspace
+            </button>
           </form>
         ) : null}
       </section>

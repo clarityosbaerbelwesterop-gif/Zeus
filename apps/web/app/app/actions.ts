@@ -93,7 +93,11 @@ export async function toggleAgentAction(formData: FormData) {
 export async function createConversationAction(formData: FormData) {
   const workspaceId = field(formData, "workspaceId");
   const code = agent(formData.get("agent"));
-  const id = await createConversation(workspaceId, code, optionalField(formData, "title") ?? undefined);
+  const id = await createConversation(
+    workspaceId,
+    code,
+    optionalField(formData, "title") ?? undefined,
+  );
   redirect(`/app?workspace=${workspaceId}&conversation=${id}`);
 }
 

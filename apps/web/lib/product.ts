@@ -200,10 +200,7 @@ async function enabledAgent(
       .select({ agentCode: workspaceAgents.agentCode })
       .from(workspaceAgents)
       .where(
-        and(
-          eq(workspaceAgents.workspaceId, workspaceId),
-          eq(workspaceAgents.agentCode, agentCode),
-        ),
+        and(eq(workspaceAgents.workspaceId, workspaceId), eq(workspaceAgents.agentCode, agentCode)),
       )
       .limit(1)
   )[0];
@@ -270,9 +267,11 @@ export async function createWorkspace(input: {
       .insert(workspaceMembers)
       .values({ workspaceId, userId: account.user.id, role: "owner" });
     if (selected.length) {
-      await db.insert(workspaceAgents).values(
-        selected.map((agentCode) => ({ workspaceId, agentCode, enabledBy: account.user.id })),
-      );
+      await db
+        .insert(workspaceAgents)
+        .values(
+          selected.map((agentCode) => ({ workspaceId, agentCode, enabledBy: account.user.id })),
+        );
       for (const agentCode of selected) {
         await ensureDirectConversation(db, account.user.id, workspaceId, agentCode);
       }
@@ -284,9 +283,9 @@ export async function createWorkspace(input: {
         title: "Team room",
         createdBy: account.user.id,
       });
-      await db.insert(conversationParticipants).values(
-        selected.map((agentCode) => ({ conversationId: teamConversationId, agentCode })),
-      );
+      await db
+        .insert(conversationParticipants)
+        .values(selected.map((agentCode) => ({ conversationId: teamConversationId, agentCode })));
     }
     if (objective) {
       await db.insert(memoryEntries).values({
@@ -442,9 +441,9 @@ export async function createConversation(
       createdBy: account.user.id,
     });
     if (enabled.length) {
-      await db.insert(conversationParticipants).values(
-        enabled.map((item) => ({ conversationId, agentCode: item.agentCode })),
-      );
+      await db
+        .insert(conversationParticipants)
+        .values(enabled.map((item) => ({ conversationId, agentCode: item.agentCode })));
     }
     await recordEvent(db, account, {
       workspaceId,
@@ -480,7 +479,8 @@ export async function sendMessage(conversationId: string, content: string): Prom
           sql`${messages.createdAt} >= ${new Date(Date.now() - 60_000)}`,
         ),
       );
-    if ((recentRow?.value ?? 0) >= 30) throw new Error("Message rate limit reached. Try again in a minute.");
+    if ((recentRow?.value ?? 0) >= 30)
+      throw new Error("Message rate limit reached. Try again in a minute.");
 
     const messageId = randomUUID();
     await db.insert(messages).values({
@@ -493,7 +493,9 @@ export async function sendMessage(conversationId: string, content: string): Prom
       status: "complete",
     });
     const runId = randomUUID();
-    const agentCode: AgentCode = knownAgent(conversation.agentCode) ? conversation.agentCode : "jorge";
+    const agentCode: AgentCode = knownAgent(conversation.agentCode)
+      ? conversation.agentCode
+      : "jorge";
     await db.insert(runs).values({
       id: runId,
       workspaceId: conversation.workspaceId,
@@ -595,9 +597,7 @@ export async function updateTask(input: {
   if (!isTaskPriority(input.priority)) throw new Error("Unknown task priority.");
   await withActor(account.user.id, async (db) => {
     await requireCapability(db, account.user.id, input.workspaceId, "task.write");
-    const current = (
-      await db.select().from(tasks).where(eq(tasks.id, input.taskId)).limit(1)
-    )[0];
+    const current = (await db.select().from(tasks).where(eq(tasks.id, input.taskId)).limit(1))[0];
     if (!current || current.workspaceId !== input.workspaceId) throw new Error("Task not found.");
     if (!isTaskStatus(current.status)) throw new Error("Task has an invalid persisted status.");
     assertTaskTransition(current.status, input.status);
@@ -740,10 +740,14 @@ export async function getWorkspaceFile(fileId: string): Promise<{
 }> {
   const account = await bootstrapAccount();
   return withActor(account.user.id, async (db) => {
-    const file = (await db.select().from(workspaceFiles).where(eq(workspaceFiles.id, fileId)).limit(1))[0];
+    const file = (
+      await db.select().from(workspaceFiles).where(eq(workspaceFiles.id, fileId)).limit(1)
+    )[0];
     if (!file) throw new Error("File not found.");
     await requireCapability(db, account.user.id, file.workspaceId, "file.read");
-    const object = (await db.select().from(fileObjects).where(eq(fileObjects.fileId, fileId)).limit(1))[0];
+    const object = (
+      await db.select().from(fileObjects).where(eq(fileObjects.fileId, fileId)).limit(1)
+    )[0];
     if (!object) throw new Error("Stored file content is unavailable.");
     return {
       filename: safeFileName(file.filename),
@@ -808,10 +812,7 @@ export async function updateMemory(input: {
         updatedAt: new Date(),
       })
       .where(
-        and(
-          eq(memoryEntries.id, input.memoryId),
-          eq(memoryEntries.workspaceId, input.workspaceId),
-        ),
+        and(eq(memoryEntries.id, input.memoryId), eq(memoryEntries.workspaceId, input.workspaceId)),
       );
     await recordEvent(db, account, {
       workspaceId: input.workspaceId,
@@ -870,7 +871,10 @@ export async function createArtifact(input: {
       creatingAgent: input.creatingAgent ?? null,
     });
     if (input.taskId) {
-      await db.insert(taskArtifacts).values({ taskId: input.taskId, artifactId }).onConflictDoNothing();
+      await db
+        .insert(taskArtifacts)
+        .values({ taskId: input.taskId, artifactId })
+        .onConflictDoNothing();
     }
     await recordEvent(db, account, {
       workspaceId: input.workspaceId,
@@ -902,7 +906,10 @@ export async function linkTask(input: {
         .onConflictDoNothing();
     }
     if (input.runId) {
-      await db.insert(taskRuns).values({ taskId: input.taskId, runId: input.runId }).onConflictDoNothing();
+      await db
+        .insert(taskRuns)
+        .values({ taskId: input.taskId, runId: input.runId })
+        .onConflictDoNothing();
     }
     if (input.artifactId) {
       await db
@@ -921,8 +928,14 @@ export async function updateWorkspaceMember(input: {
   const account = await bootstrapAccount();
   if (!isWorkspaceRole(input.role)) throw new Error("Unknown workspace role.");
   await withActor(account.user.id, async (db) => {
-    const actorRole = await requireCapability(db, account.user.id, input.workspaceId, "member.manage");
-    if (input.role === "owner" && actorRole !== "owner") throw new Error("Only an owner can grant ownership.");
+    const actorRole = await requireCapability(
+      db,
+      account.user.id,
+      input.workspaceId,
+      "member.manage",
+    );
+    if (input.role === "owner" && actorRole !== "owner")
+      throw new Error("Only an owner can grant ownership.");
     const current = (
       await db
         .select()
@@ -942,7 +955,8 @@ export async function updateWorkspaceMember(input: {
         role: input.role,
       });
     } else {
-      if (current.role === "owner" && actorRole !== "owner") throw new Error("Only an owner can change an owner.");
+      if (current.role === "owner" && actorRole !== "owner")
+        throw new Error("Only an owner can change an owner.");
       await db
         .update(workspaceMembers)
         .set({ role: input.role })
@@ -968,7 +982,9 @@ export async function getWorkspaceContext(workspaceId: string): Promise<Workspac
   const account = await bootstrapAccount();
   return withActor(account.user.id, async (db) => {
     await requireCapability(db, account.user.id, workspaceId, "workspace.read");
-    const workspace = (await db.select().from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1))[0];
+    const workspace = (
+      await db.select().from(workspaces).where(eq(workspaces.id, workspaceId)).limit(1)
+    )[0];
     if (!workspace) throw new Error("Workspace not found.");
     const activePlan = (
       await db
@@ -990,7 +1006,9 @@ export async function getWorkspaceContext(workspaceId: string): Promise<Workspac
       .where(and(eq(memoryEntries.workspaceId, workspaceId), isNull(memoryEntries.archivedAt)))
       .orderBy(desc(memoryEntries.updatedAt))
       .limit(20);
-    const recentDecisions = importantMemory.filter((entry) => entry.type === "decision").slice(0, 8);
+    const recentDecisions = importantMemory
+      .filter((entry) => entry.type === "decision")
+      .slice(0, 8);
     const relevantFiles = await db
       .select()
       .from(workspaceFiles)
@@ -1003,7 +1021,13 @@ export async function getWorkspaceContext(workspaceId: string): Promise<Workspac
       successCriteria: workspace.successCriteria,
       currentFocus: workspace.currentFocus,
       ...(activePlan
-        ? { activePlan: { id: activePlan.id, title: activePlan.title, objective: activePlan.objective } }
+        ? {
+            activePlan: {
+              id: activePlan.id,
+              title: activePlan.title,
+              objective: activePlan.objective,
+            },
+          }
         : {}),
       assignedTasks: assignedTasks.map((task) => ({
         id: task.id,
@@ -1013,7 +1037,12 @@ export async function getWorkspaceContext(workspaceId: string): Promise<Workspac
       })),
       importantMemory: importantMemory
         .filter((entry): entry is typeof entry & { type: MemoryType } => isMemoryType(entry.type))
-        .map((entry) => ({ id: entry.id, type: entry.type, title: entry.title, content: entry.content })),
+        .map((entry) => ({
+          id: entry.id,
+          type: entry.type,
+          title: entry.title,
+          content: entry.content,
+        })),
       recentDecisions: recentDecisions.map((entry) => ({
         id: entry.id,
         title: entry.title,
@@ -1043,7 +1072,8 @@ async function searchWorkspace(
 ): Promise<SearchItem[]> {
   const query = normalizeSearchQuery(rawQuery);
   if (query.length < 2) return [];
-  const match = (left: unknown) => sql<boolean>`to_tsvector('simple', ${left}) @@ websearch_to_tsquery('simple', ${query})`;
+  const match = (left: unknown) =>
+    sql<boolean>`to_tsvector('simple', ${left}) @@ websearch_to_tsquery('simple', ${query})`;
   const [conversationRows, messageRows, taskRows, planRows, fileRows, artifactRows, memoryRows] =
     await Promise.all([
       db
@@ -1052,7 +1082,11 @@ async function searchWorkspace(
         .where(and(eq(conversations.workspaceId, workspaceId), match(conversations.title)))
         .limit(6),
       db
-        .select({ id: messages.id, content: messages.content, conversationId: messages.conversationId })
+        .select({
+          id: messages.id,
+          content: messages.content,
+          conversationId: messages.conversationId,
+        })
         .from(messages)
         .innerJoin(conversations, eq(conversations.id, messages.conversationId))
         .where(and(eq(conversations.workspaceId, workspaceId), match(messages.content)))
@@ -1078,7 +1112,11 @@ async function searchWorkspace(
         )
         .limit(6),
       db
-        .select({ id: workspaceFiles.id, filename: workspaceFiles.filename, contentType: workspaceFiles.contentType })
+        .select({
+          id: workspaceFiles.id,
+          filename: workspaceFiles.filename,
+          contentType: workspaceFiles.contentType,
+        })
         .from(workspaceFiles)
         .where(and(eq(workspaceFiles.workspaceId, workspaceId), match(workspaceFiles.filename)))
         .limit(6),
@@ -1088,7 +1126,12 @@ async function searchWorkspace(
         .where(and(eq(artifacts.workspaceId, workspaceId), match(artifacts.title)))
         .limit(6),
       db
-        .select({ id: memoryEntries.id, title: memoryEntries.title, content: memoryEntries.content, type: memoryEntries.type })
+        .select({
+          id: memoryEntries.id,
+          title: memoryEntries.title,
+          content: memoryEntries.content,
+          type: memoryEntries.type,
+        })
         .from(memoryEntries)
         .where(
           and(
@@ -1100,13 +1143,55 @@ async function searchWorkspace(
         .limit(6),
     ]);
   return [
-    ...conversationRows.map((row) => ({ type: "conversation" as const, id: row.id, workspaceId, title: row.title, detail: "Conversation" })),
-    ...messageRows.map((row) => ({ type: "message" as const, id: row.id, workspaceId, title: row.content.slice(0, 100), detail: `Conversation ${row.conversationId.slice(0, 8)}` })),
-    ...taskRows.map((row) => ({ type: "task" as const, id: row.id, workspaceId, title: row.title, detail: row.description.slice(0, 120) })),
-    ...planRows.map((row) => ({ type: "plan" as const, id: row.id, workspaceId, title: row.title, detail: row.objective.slice(0, 120) })),
-    ...fileRows.map((row) => ({ type: "file" as const, id: row.id, workspaceId, title: row.filename, detail: row.contentType })),
-    ...artifactRows.map((row) => ({ type: "artifact" as const, id: row.id, workspaceId, title: row.title, detail: row.kind })),
-    ...memoryRows.map((row) => ({ type: "memory" as const, id: row.id, workspaceId, title: row.title, detail: `${row.type} · ${row.content.slice(0, 100)}` })),
+    ...conversationRows.map((row) => ({
+      type: "conversation" as const,
+      id: row.id,
+      workspaceId,
+      title: row.title,
+      detail: "Conversation",
+    })),
+    ...messageRows.map((row) => ({
+      type: "message" as const,
+      id: row.id,
+      workspaceId,
+      title: row.content.slice(0, 100),
+      detail: `Conversation ${row.conversationId.slice(0, 8)}`,
+    })),
+    ...taskRows.map((row) => ({
+      type: "task" as const,
+      id: row.id,
+      workspaceId,
+      title: row.title,
+      detail: row.description.slice(0, 120),
+    })),
+    ...planRows.map((row) => ({
+      type: "plan" as const,
+      id: row.id,
+      workspaceId,
+      title: row.title,
+      detail: row.objective.slice(0, 120),
+    })),
+    ...fileRows.map((row) => ({
+      type: "file" as const,
+      id: row.id,
+      workspaceId,
+      title: row.filename,
+      detail: row.contentType,
+    })),
+    ...artifactRows.map((row) => ({
+      type: "artifact" as const,
+      id: row.id,
+      workspaceId,
+      title: row.title,
+      detail: row.kind,
+    })),
+    ...memoryRows.map((row) => ({
+      type: "memory" as const,
+      id: row.id,
+      workspaceId,
+      title: row.title,
+      detail: `${row.type} · ${row.content.slice(0, 100)}`,
+    })),
   ];
 }
 
@@ -1178,31 +1263,92 @@ export async function workspacePageData(
         globalSearchResults: [] as SearchItem[],
       };
     }
-    const membershipRole = await requireCapability(db, account.user.id, activeWorkspace.id, "workspace.read");
-    const [enabled, templates, conversationRows, runRows, taskRows, planRows, fileRows, artifactRows, memoryRows, eventRows, memberRows] =
-      await Promise.all([
-        db.select().from(workspaceAgents).where(eq(workspaceAgents.workspaceId, activeWorkspace.id)),
-        db.select().from(agentTemplates),
-        db
-          .select()
-          .from(conversations)
-          .where(eq(conversations.workspaceId, activeWorkspace.id))
-          .orderBy(desc(conversations.updatedAt)),
-        db.select().from(runs).where(eq(runs.workspaceId, activeWorkspace.id)).orderBy(desc(runs.createdAt)).limit(30),
-        db.select().from(tasks).where(eq(tasks.workspaceId, activeWorkspace.id)).orderBy(desc(tasks.updatedAt)).limit(100),
-        db.select().from(plans).where(eq(plans.workspaceId, activeWorkspace.id)).orderBy(desc(plans.updatedAt)).limit(30),
-        db.select().from(workspaceFiles).where(eq(workspaceFiles.workspaceId, activeWorkspace.id)).orderBy(desc(workspaceFiles.createdAt)).limit(50),
-        db.select().from(artifacts).where(eq(artifacts.workspaceId, activeWorkspace.id)).orderBy(desc(artifacts.updatedAt)).limit(50),
-        db.select().from(memoryEntries).where(and(eq(memoryEntries.workspaceId, activeWorkspace.id), isNull(memoryEntries.archivedAt))).orderBy(desc(memoryEntries.updatedAt)).limit(80),
-        db.select().from(workspaceEvents).where(eq(workspaceEvents.workspaceId, activeWorkspace.id)).orderBy(desc(workspaceEvents.createdAt)).limit(60),
-        db.select().from(workspaceMembers).where(eq(workspaceMembers.workspaceId, activeWorkspace.id)),
-      ]);
+    const membershipRole = await requireCapability(
+      db,
+      account.user.id,
+      activeWorkspace.id,
+      "workspace.read",
+    );
+    const [
+      enabled,
+      templates,
+      conversationRows,
+      runRows,
+      taskRows,
+      planRows,
+      fileRows,
+      artifactRows,
+      memoryRows,
+      eventRows,
+      memberRows,
+    ] = await Promise.all([
+      db.select().from(workspaceAgents).where(eq(workspaceAgents.workspaceId, activeWorkspace.id)),
+      db.select().from(agentTemplates),
+      db
+        .select()
+        .from(conversations)
+        .where(eq(conversations.workspaceId, activeWorkspace.id))
+        .orderBy(desc(conversations.updatedAt)),
+      db
+        .select()
+        .from(runs)
+        .where(eq(runs.workspaceId, activeWorkspace.id))
+        .orderBy(desc(runs.createdAt))
+        .limit(30),
+      db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.workspaceId, activeWorkspace.id))
+        .orderBy(desc(tasks.updatedAt))
+        .limit(100),
+      db
+        .select()
+        .from(plans)
+        .where(eq(plans.workspaceId, activeWorkspace.id))
+        .orderBy(desc(plans.updatedAt))
+        .limit(30),
+      db
+        .select()
+        .from(workspaceFiles)
+        .where(eq(workspaceFiles.workspaceId, activeWorkspace.id))
+        .orderBy(desc(workspaceFiles.createdAt))
+        .limit(50),
+      db
+        .select()
+        .from(artifacts)
+        .where(eq(artifacts.workspaceId, activeWorkspace.id))
+        .orderBy(desc(artifacts.updatedAt))
+        .limit(50),
+      db
+        .select()
+        .from(memoryEntries)
+        .where(
+          and(eq(memoryEntries.workspaceId, activeWorkspace.id), isNull(memoryEntries.archivedAt)),
+        )
+        .orderBy(desc(memoryEntries.updatedAt))
+        .limit(80),
+      db
+        .select()
+        .from(workspaceEvents)
+        .where(eq(workspaceEvents.workspaceId, activeWorkspace.id))
+        .orderBy(desc(workspaceEvents.createdAt))
+        .limit(60),
+      db
+        .select()
+        .from(workspaceMembers)
+        .where(eq(workspaceMembers.workspaceId, activeWorkspace.id)),
+    ]);
 
     const participantRows = conversationRows.length
       ? await db
           .select()
           .from(conversationParticipants)
-          .where(inArray(conversationParticipants.conversationId, conversationRows.map((row) => row.id)))
+          .where(
+            inArray(
+              conversationParticipants.conversationId,
+              conversationRows.map((row) => row.id),
+            ),
+          )
       : [];
     const activeConversation = conversationId
       ? (conversationRows.find((item) => item.id === conversationId) ?? conversationRows[0])
@@ -1229,7 +1375,8 @@ export async function workspacePageData(
       : [];
     const agentSet = new Set(enabled.map((item) => item.agentCode));
     const latestByAgent = new Map<string, (typeof runRows)[number]>();
-    for (const run of runRows) if (!latestByAgent.has(run.agentCode)) latestByAgent.set(run.agentCode, run);
+    for (const run of runRows)
+      if (!latestByAgent.has(run.agentCode)) latestByAgent.set(run.agentCode, run);
     const agents = templates.map((template) => ({
       ...template,
       enabled: agentSet.has(template.code),
@@ -1244,7 +1391,10 @@ export async function workspacePageData(
           .where(inArray(users.id, memberUserIds))
       : [];
     const userMap = new Map(visibleUsers.map((user) => [user.id, user]));
-    const members = memberRows.map((member) => ({ ...member, user: userMap.get(member.userId) ?? null }));
+    const members = memberRows.map((member) => ({
+      ...member,
+      user: userMap.get(member.userId) ?? null,
+    }));
     const searchResults = await searchWorkspace(db, activeWorkspace.id, searchQuery);
     const globalSearchResults = await globalSearch(db, allWorkspaces, searchQuery);
     return {
