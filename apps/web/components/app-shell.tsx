@@ -5,6 +5,7 @@ import type { WorkspacePageData } from "@/lib/product";
 import { AgentMark } from "./agent-mark";
 import { CommandPalette } from "./command-palette";
 import { ConversationView } from "./workspace-conversation";
+import { WorkspaceCreateForm } from "./workspace-create-form";
 import { ArtifactsView, FilesView } from "./workspace-files-artifacts";
 import { WorkspaceHome } from "./workspace-home";
 import { ActivityView, MemoryView } from "./workspace-memory-activity";
@@ -13,8 +14,7 @@ import { SearchView } from "./workspace-search";
 import { SettingsView } from "./workspace-settings";
 import { participantNames, TeamView } from "./workspace-team";
 import { TasksView } from "./workspace-tasks";
-import { EmptyState, timeLabel, workspaceHref } from "./workspace-ui";
-import { WorkspaceCreateForm } from "./workspace-create-form";
+import { timeLabel, workspaceHref } from "./workspace-ui";
 
 const viewLabels: Record<string, string> = {
   home: "Workspace",
@@ -110,51 +110,17 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
         </form>
 
         <nav className="sidebar-nav space-y-1">
-          <SidebarLink
-            href={workspaceHref(workspace.id)}
-            active={selectedView === "home"}
-            label="Home"
-          />
-          <SidebarLink
-            href={workspaceHref(workspace.id, "team")}
-            active={selectedView === "team"}
-            label="Team"
-          />
-          <SidebarLink
-            href={workspaceHref(workspace.id, "tasks")}
-            active={selectedView === "tasks"}
-            label="Tasks"
-          />
-          <SidebarLink
-            href={workspaceHref(workspace.id, "plans")}
-            active={selectedView === "plans"}
-            label="Plans"
-          />
-          <SidebarLink
-            href={workspaceHref(workspace.id, "files")}
-            active={selectedView === "files"}
-            label="Files"
-          />
-          <SidebarLink
-            href={workspaceHref(workspace.id, "artifacts")}
-            active={selectedView === "artifacts"}
-            label="Artifacts"
-          />
-          <SidebarLink
-            href={workspaceHref(workspace.id, "memory")}
-            active={selectedView === "memory"}
-            label="Memory"
-          />
-          <SidebarLink
-            href={workspaceHref(workspace.id, "activity")}
-            active={selectedView === "activity"}
-            label="Activity"
-          />
+          <SidebarLink href={workspaceHref(workspace.id)} active={selectedView === "home"} label="Home" />
+          <SidebarLink href={workspaceHref(workspace.id, "team")} active={selectedView === "team"} label="Team" />
+          <SidebarLink href={workspaceHref(workspace.id, "tasks")} active={selectedView === "tasks"} label="Tasks" />
+          <SidebarLink href={workspaceHref(workspace.id, "plans")} active={selectedView === "plans"} label="Plans" />
+          <SidebarLink href={workspaceHref(workspace.id, "files")} active={selectedView === "files"} label="Files" />
+          <SidebarLink href={workspaceHref(workspace.id, "artifacts")} active={selectedView === "artifacts"} label="Artifacts" />
+          <SidebarLink href={workspaceHref(workspace.id, "memory")} active={selectedView === "memory"} label="Memory" />
+          <SidebarLink href={workspaceHref(workspace.id, "activity")} active={selectedView === "activity"} label="Activity" />
         </nav>
 
-        <div className="sidebar-label mt-7 mb-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-          Team
-        </div>
+        <div className="sidebar-label mt-7 mb-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">Team</div>
         <div className="space-y-1">
           {data.agents
             .filter((agent) => agent.enabled)
@@ -167,18 +133,12 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
                   className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-white/55"
                 >
                   <AgentMark
-                    agent={{
-                      code: agent.code as AgentCode,
-                      name: agent.name,
-                      accent: agent.accent,
-                    }}
+                    agent={{ code: agent.code as AgentCode, name: agent.name, accent: agent.accent }}
                     size={30}
                   />
                   <span className="sidebar-label min-w-0">
                     <span className="block text-sm font-medium">{agent.name}</span>
-                    <span className="block truncate text-[11px] capitalize text-[var(--muted)]">
-                      {agent.presence}
-                    </span>
+                    <span className="block truncate text-[11px] capitalize text-[var(--muted)]">{agent.presence}</span>
                   </span>
                 </Link>
               ) : null;
@@ -225,11 +185,7 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
           {data.activeConversation ? (
             <ConversationView data={data} />
           ) : selectedView === "team" ? (
-            <TeamView
-              data={data}
-              directConversationByAgent={directConversationByAgent}
-              canManage={canManage}
-            />
+            <TeamView data={data} directConversationByAgent={directConversationByAgent} canManage={canManage} />
           ) : selectedView === "tasks" ? (
             <TasksView data={data} canWrite={canWrite} />
           ) : selectedView === "plans" ? (
@@ -257,9 +213,7 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
           <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">Now</p>
           <span className="size-2 rounded-full bg-[#8f8b82]" />
         </div>
-        <p className="mt-5 text-sm font-medium">
-          {workspace.currentFocus || workspace.objective || "No current focus set."}
-        </p>
+        <p className="mt-5 text-sm font-medium">{workspace.currentFocus || workspace.objective || "No current focus set."}</p>
         <div className="mt-8 space-y-4">
           {data.agents
             .filter((agent) => agent.enabled)
@@ -267,11 +221,7 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
               <div key={agent.code} className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-2">
                   <AgentMark
-                    agent={{
-                      code: agent.code as AgentCode,
-                      name: agent.name,
-                      accent: agent.accent,
-                    }}
+                    agent={{ code: agent.code as AgentCode, name: agent.name, accent: agent.accent }}
                     size={28}
                   />
                   <span className="truncate text-sm">{agent.name}</span>
@@ -281,9 +231,7 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
             ))}
         </div>
         <div className="mt-8 border-t border-[var(--line)] pt-5">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-            Recent activity
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">Recent activity</p>
           <div className="mt-4 space-y-4">
             {data.activity.slice(0, 5).map((event) => (
               <div key={event.id}>
@@ -292,9 +240,7 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
               </div>
             ))}
             {!data.activity.length ? (
-              <p className="text-xs leading-5 text-[var(--muted)]">
-                Real workspace events will appear here.
-              </p>
+              <p className="text-xs leading-5 text-[var(--muted)]">Real workspace events will appear here.</p>
             ) : null}
           </div>
         </div>
@@ -320,15 +266,10 @@ function EmptyWorkspace() {
   return (
     <main className="grid min-h-screen place-items-center px-5 py-10">
       <div className="w-full max-w-2xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-          ZEUS · first workspace
-        </p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">
-          Give your team a place to remember.
-        </h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">ZEUS · first workspace</p>
+        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">Give your team a place to remember.</h1>
         <p className="mt-4 max-w-xl text-sm leading-6 text-[var(--muted)]">
-          A workspace owns the objective, team, conversations, tasks, files, artifacts, memory and
-          activity. It persists when the chat closes.
+          A workspace owns the objective, team, conversations, tasks, files, artifacts, memory and activity. It persists when the chat closes.
         </p>
         <div className="mt-9">
           <WorkspaceCreateForm />
