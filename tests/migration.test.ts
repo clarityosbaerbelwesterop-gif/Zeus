@@ -37,10 +37,11 @@ describe("Zeus database foundation", () => {
 
   it("stores only opaque token identification and digests", async () => {
     const sql = await readFile(migrationUrl, "utf8");
-    const tokenTable = sql.slice(
-      sql.indexOf("CREATE TABLE IF NOT EXISTS zeus.api_tokens"),
-      sql.indexOf("CREATE TABLE IF NOT EXISTS zeus.audit_events"),
-    );
+    const tokenStart = sql.search(/CREATE TABLE(?: IF NOT EXISTS)? zeus\.api_tokens/u);
+    const auditStart = sql.search(/CREATE TABLE(?: IF NOT EXISTS)? zeus\.audit_events/u);
+    expect(tokenStart).toBeGreaterThanOrEqual(0);
+    expect(auditStart).toBeGreaterThan(tokenStart);
+    const tokenTable = sql.slice(tokenStart, auditStart);
     expect(tokenTable).toContain("digest text NOT NULL UNIQUE");
     expect(tokenTable).toContain("prefix text NOT NULL");
     expect(tokenTable).not.toMatch(/raw_token|token_value|bearer_secret/iu);
