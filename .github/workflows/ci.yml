@@ -46,9 +46,12 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - name: Verify migration and cross-tenant RLS
+      - name: Verify all migrations and M2 cross-tenant RLS
         run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/migrations/0001_foundation.sql
+          for migration in packages/db/migrations/*.sql; do
+            echo "Applying $migration"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/rls.sql
       - run: pnpm build
 
@@ -68,3 +71,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e --project=desktop --grep "landing"
+      - run: pnpm e2e --project=ipad --grep "landing"
