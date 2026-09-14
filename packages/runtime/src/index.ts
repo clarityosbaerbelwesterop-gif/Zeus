@@ -3,7 +3,10 @@ import type { RunStatus } from "@zeus/shared";
 
 export interface ModelInput {
   readonly system: string;
-  readonly messages: readonly { readonly role: "user" | "assistant"; readonly content: string }[];
+  readonly messages: readonly {
+    readonly role: "user" | "assistant";
+    readonly content: string;
+  }[];
 }
 
 export interface ModelOutput {
@@ -19,9 +22,20 @@ export interface ModelProvider {
 }
 
 export interface RunRecorder {
-  start(input: { workspaceId: string; conversationId: string; agent: AgentCode; objective: string }): Promise<{ id: string }>;
-  step(runId: string, input: { status: RunStatus; title: string; tool?: string; safeDetail?: string }): Promise<void>;
-  finish(runId: string, status: Extract<RunStatus, "completed" | "failed" | "cancelled" | "waiting">): Promise<void>;
+  start(input: {
+    workspaceId: string;
+    conversationId: string;
+    agent: AgentCode;
+    objective: string;
+  }): Promise<{ id: string }>;
+  step(
+    runId: string,
+    input: { status: RunStatus; title: string; tool?: string; safeDetail?: string },
+  ): Promise<void>;
+  finish(
+    runId: string,
+    status: Extract<RunStatus, "completed" | "failed" | "cancelled" | "waiting">,
+  ): Promise<void>;
 }
 
 export class ProviderNotConfiguredError extends Error {
@@ -34,7 +48,7 @@ export class ProviderNotConfiguredError extends Error {
 export const unconfiguredProvider: ModelProvider = {
   id: "unconfigured",
   configured: false,
-  async generate() {
-    throw new ProviderNotConfiguredError();
+  generate() {
+    return Promise.reject(new ProviderNotConfiguredError());
   },
 };

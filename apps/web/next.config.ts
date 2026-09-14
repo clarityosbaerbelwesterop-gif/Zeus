@@ -11,10 +11,18 @@ const securityHeaders = [
 ];
 
 const config: NextConfig = {
-  transpilePackages: ["@zeus/agents", "@zeus/auth", "@zeus/db", "@zeus/mcp", "@zeus/runtime", "@zeus/security", "@zeus/shared"],
+  transpilePackages: [
+    "@zeus/agents",
+    "@zeus/auth",
+    "@zeus/db",
+    "@zeus/mcp",
+    "@zeus/runtime",
+    "@zeus/security",
+    "@zeus/shared",
+  ],
   poweredByHeader: false,
-  async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+  headers() {
+    return Promise.resolve([{ source: "/(.*)", headers: securityHeaders }]);
   },
 };
 

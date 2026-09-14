@@ -9,15 +9,29 @@ function getPool(): Pool {
   if (pool) return pool;
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not configured.");
-  pool = new Pool({ connectionString, max: 8, idleTimeoutMillis: 20_000, connectionTimeoutMillis: 10_000 });
+  pool = new Pool({
+    connectionString,
+    max: 8,
+    idleTimeoutMillis: 20_000,
+    connectionTimeoutMillis: 10_000,
+  });
   return pool;
 }
 
 function validateActor(userId: string): void {
-  if (!userId || userId.length > 255 || /[\u0000-\u001f]/u.test(userId)) throw new Error("Invalid authenticated actor.");
+  if (
+    !userId ||
+    userId.length > 255 ||
+    [...userId].some((character) => character.charCodeAt(0) < 32)
+  ) {
+    throw new Error("Invalid authenticated actor.");
+  }
 }
 
-export async function withActor<T>(userId: string, action: (db: ActorDatabase) => Promise<T>): Promise<T> {
+export async function withActor<T>(
+  userId: string,
+  action: (db: ActorDatabase) => Promise<T>,
+): Promise<T> {
   validateActor(userId);
   const client = await getPool().connect();
   try {
