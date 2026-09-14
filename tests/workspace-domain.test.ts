@@ -10,7 +10,7 @@ import {
   normalizeSequence,
   safeFileName,
   validateUpload,
-} from "@zeus/workspace";
+} from "../packages/workspace/src/index.js";
 
 describe("Workspace OS permissions", () => {
   it("keeps viewers read only", () => {
@@ -57,11 +57,11 @@ describe("Workspace OS memory and plans", () => {
   });
 
   it("orders persisted plan steps deterministically", () => {
-    expect(normalizeSequence([{ sequence: 4 }, { sequence: 1 }, { sequence: 3 }]).map((step) => step.sequence)).toEqual([
-      1,
-      3,
-      4,
-    ]);
+    expect(
+      normalizeSequence([{ sequence: 4 }, { sequence: 1 }, { sequence: 3 }]).map(
+        (step) => step.sequence,
+      ),
+    ).toEqual([1, 3, 4]);
   });
 });
 
