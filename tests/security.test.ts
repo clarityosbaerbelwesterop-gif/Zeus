@@ -1,4 +1,9 @@
-import { createOpaqueToken, hashBearerToken, safeAuditMetadata, tokenDigestMatches } from "@zeus/security";
+import {
+  createOpaqueToken,
+  hashBearerToken,
+  safeAuditMetadata,
+  tokenDigestMatches,
+} from "../packages/security/src/index.js";
 import { describe, expect, it } from "vitest";
 
 describe("opaque API tokens", () => {
@@ -13,6 +18,13 @@ describe("opaque API tokens", () => {
   });
 
   it("drops credential-like audit metadata keys", () => {
-    expect(safeAuditMetadata({ project: "zeus", accessToken: "do-not-store", api_key: "secret", count: 2 })).toEqual({ project: "zeus", count: 2 });
+    expect(
+      safeAuditMetadata({
+        project: "zeus",
+        accessToken: "do-not-store",
+        api_key: "secret",
+        count: 2,
+      }),
+    ).toEqual({ project: "zeus", count: 2 });
   });
 });

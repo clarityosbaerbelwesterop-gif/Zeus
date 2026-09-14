@@ -1,9 +1,15 @@
-import { AGENT_TEMPLATES, agentTemplate } from "@zeus/agents";
+import { AGENT_TEMPLATES, agentTemplate } from "../packages/agents/src/index.js";
 import { describe, expect, it } from "vitest";
 
 describe("canonical Zeus agents", () => {
   it("contains exactly the five system teammates", () => {
-    expect(AGENT_TEMPLATES.map((agent) => agent.code)).toEqual(["jorge", "kai", "lora", "simon", "sara"]);
+    expect(AGENT_TEMPLATES.map((agent) => agent.code)).toEqual([
+      "jorge",
+      "kai",
+      "lora",
+      "simon",
+      "sara",
+    ]);
     expect(new Set(AGENT_TEMPLATES.map((agent) => agent.name)).size).toBe(5);
   });
 
