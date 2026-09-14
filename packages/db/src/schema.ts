@@ -1,4 +1,13 @@
-import { boolean, integer, jsonb, pgSchema, primaryKey, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  jsonb,
+  pgSchema,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const zeus = pgSchema("zeus");
 const timestamps = {
@@ -23,8 +32,12 @@ export const organizations = zeus.table("organizations", {
 export const organizationMembers = zeus.table(
   "organization_members",
   {
-    organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -33,7 +46,9 @@ export const organizationMembers = zeus.table(
 
 export const workspaces = zeus.table("workspaces", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   createdBy: text("created_by").notNull(),
@@ -43,8 +58,12 @@ export const workspaces = zeus.table("workspaces", {
 export const workspaceMembers = zeus.table(
   "workspace_members",
   {
-    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     role: text("role").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -64,8 +83,12 @@ export const agentTemplates = zeus.table("agent_templates", {
 export const workspaceAgents = zeus.table(
   "workspace_agents",
   {
-    workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-    agentCode: text("agent_code").notNull().references(() => agentTemplates.code),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    agentCode: text("agent_code")
+      .notNull()
+      .references(() => agentTemplates.code),
     enabledBy: text("enabled_by").notNull(),
     enabledAt: timestamp("enabled_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -74,7 +97,9 @@ export const workspaceAgents = zeus.table(
 
 export const conversations = zeus.table("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   agentCode: text("agent_code").references(() => agentTemplates.code),
   createdBy: text("created_by").notNull(),
@@ -83,7 +108,9 @@ export const conversations = zeus.table("conversations", {
 
 export const messages = zeus.table("messages", {
   id: uuid("id").primaryKey().defaultRandom(),
-  conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  conversationId: uuid("conversation_id")
+    .notNull()
+    .references(() => conversations.id, { onDelete: "cascade" }),
   authorId: text("author_id"),
   agentCode: text("agent_code").references(() => agentTemplates.code),
   role: text("role").notNull(),
@@ -93,9 +120,15 @@ export const messages = zeus.table("messages", {
 
 export const runs = zeus.table("runs", {
   id: uuid("id").primaryKey().defaultRandom(),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
-  agentCode: text("agent_code").notNull().references(() => agentTemplates.code),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  conversationId: uuid("conversation_id").references(() => conversations.id, {
+    onDelete: "set null",
+  }),
+  agentCode: text("agent_code")
+    .notNull()
+    .references(() => agentTemplates.code),
   status: text("status").notNull(),
   objective: text("objective").notNull(),
   createdBy: text("created_by").notNull(),
@@ -106,7 +139,9 @@ export const runs = zeus.table("runs", {
 
 export const runSteps = zeus.table("run_steps", {
   id: uuid("id").primaryKey().defaultRandom(),
-  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
+  runId: uuid("run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "cascade" }),
   ordinal: integer("ordinal").notNull(),
   status: text("status").notNull(),
   title: text("title").notNull(),
@@ -120,7 +155,9 @@ export const runSteps = zeus.table("run_steps", {
 
 export const artifacts = zeus.table("artifacts", {
   id: uuid("id").primaryKey().defaultRandom(),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
   runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   kind: text("kind").notNull(),
@@ -132,7 +169,9 @@ export const artifacts = zeus.table("artifacts", {
 
 export const connections = zeus.table("connections", {
   id: uuid("id").primaryKey().defaultRandom(),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
   ownerId: text("owner_id").notNull(),
   provider: text("provider").notNull(),
   kind: text("kind").notNull(),
@@ -144,7 +183,9 @@ export const connections = zeus.table("connections", {
 
 export const apiTokens = zeus.table("api_tokens", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
   workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
   ownerId: text("owner_id").notNull(),
   label: text("label").notNull(),
@@ -159,7 +200,9 @@ export const apiTokens = zeus.table("api_tokens", {
 
 export const auditEvents = zeus.table("audit_events", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
   workspaceId: uuid("workspace_id").references(() => workspaces.id, { onDelete: "set null" }),
   actorId: text("actor_id").notNull(),
   action: text("action").notNull(),

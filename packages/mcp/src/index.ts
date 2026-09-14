@@ -1,4 +1,5 @@
-export type ConnectionProvider = "github" | "google_workspace" | "linkedin" | "neon" | "vercel" | "custom";
+export type ConnectionProvider =
+  "github" | "google_workspace" | "linkedin" | "neon" | "vercel" | "custom";
 export type ConnectionStatus = "connected" | "needs_authorization" | "error" | "revoked";
 export type ConnectionKind = "oauth" | "api_key" | "mcp";
 

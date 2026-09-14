@@ -17,8 +17,11 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       ...process.env,
-      NEON_AUTH_BASE_URL: process.env.NEON_AUTH_BASE_URL ?? "https://auth.example.invalid/zeus/auth",
-      NEON_AUTH_COOKIE_SECRET: process.env.NEON_AUTH_COOKIE_SECRET ?? "ci-cookie-secret-that-is-longer-than-thirty-two-characters",
+      NEON_AUTH_BASE_URL:
+        process.env.NEON_AUTH_BASE_URL ?? "https://auth.example.invalid/zeus/auth",
+      NEON_AUTH_COOKIE_SECRET:
+        process.env.NEON_AUTH_COOKIE_SECRET ??
+        "ci-cookie-secret-that-is-longer-than-thirty-two-characters",
     },
   },
 });

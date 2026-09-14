@@ -7,7 +7,13 @@
     "./server": "./src/server.ts",
     "./client": "./src/client.ts"
   },
-  "scripts": { "typecheck": "tsc --noEmit -p tsconfig.json" },
-  "dependencies": { "@neondatabase/auth": "latest" },
-  "devDependencies": { "typescript": "^5.9.2" }
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@neondatabase/auth": "latest"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
 }

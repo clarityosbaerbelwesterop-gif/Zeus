@@ -40,7 +40,9 @@ export function assertTrustedOrigin(requestOrigin: string | null, publicOrigin: 
   if (supplied !== expected) throw new Error("Cross-origin mutation denied.");
 }
 
-export function safeAuditMetadata(input: Record<string, string | number | boolean | null>): Record<string, string | number | boolean | null> {
+export function safeAuditMetadata(
+  input: Record<string, string | number | boolean | null>,
+): Record<string, string | number | boolean | null> {
   const forbidden = /(secret|password|token|authorization|cookie|key)/iu;
   return Object.fromEntries(Object.entries(input).filter(([key]) => !forbidden.test(key)));
 }
