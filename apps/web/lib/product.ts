@@ -75,13 +75,11 @@ export async function bootstrapAccount() {
     let created = false;
     if (!membership) {
       const organizationId = randomUUID();
-      await db
-        .insert(organizations)
-        .values({
-          id: organizationId,
-          name: user.name ? `${user.name}'s Zeus` : "My Zeus",
-          createdBy: user.id,
-        });
+      await db.insert(organizations).values({
+        id: organizationId,
+        name: user.name ? `${user.name}'s Zeus` : "My Zeus",
+        createdBy: user.id,
+      });
       await db
         .insert(organizationMembers)
         .values({ organizationId, userId: user.id, role: "owner" });
@@ -112,15 +110,13 @@ export async function createWorkspace(input: {
   const selected = [...new Set(input.agents)].filter((code) => allowed.has(code));
   const workspaceId = randomUUID();
   await withActor(account.user.id, async (db) => {
-    await db
-      .insert(workspaces)
-      .values({
-        id: workspaceId,
-        organizationId: account.organizationId,
-        name,
-        description,
-        createdBy: account.user.id,
-      });
+    await db.insert(workspaces).values({
+      id: workspaceId,
+      organizationId: account.organizationId,
+      name,
+      description,
+      createdBy: account.user.id,
+    });
     await db
       .insert(workspaceMembers)
       .values({ workspaceId, userId: account.user.id, role: "owner" });
@@ -202,26 +198,22 @@ export async function createConversation(workspaceId: string, agentCode: AgentCo
     ? (AGENT_TEMPLATES.find((agent) => agent.code === agentCode)?.name ?? "Agent")
     : "Team";
   await withActor(account.user.id, async (db) => {
-    await db
-      .insert(conversations)
-      .values({
-        id: conversationId,
-        workspaceId,
-        title: `${label} conversation`,
-        agentCode,
-        createdBy: account.user.id,
-      });
-    await db
-      .insert(auditEvents)
-      .values({
-        organizationId: account.organizationId,
-        workspaceId,
-        actorId: account.user.id,
-        action: "conversation.created",
-        targetType: "conversation",
-        targetId: conversationId,
-        metadata: { agent: agentCode ?? "team" },
-      });
+    await db.insert(conversations).values({
+      id: conversationId,
+      workspaceId,
+      title: `${label} conversation`,
+      agentCode,
+      createdBy: account.user.id,
+    });
+    await db.insert(auditEvents).values({
+      organizationId: account.organizationId,
+      workspaceId,
+      actorId: account.user.id,
+      action: "conversation.created",
+      targetType: "conversation",
+      targetId: conversationId,
+      metadata: { agent: agentCode ?? "team" },
+    });
   });
   return conversationId;
 }
@@ -278,17 +270,15 @@ export async function sendMessage(conversationId: string, content: string) {
       content:
         "AI provider not configured yet. Your message is saved and this run is waiting for a model provider.",
     });
-    await db
-      .insert(auditEvents)
-      .values({
-        organizationId: account.organizationId,
-        workspaceId: conversation.workspaceId,
-        actorId: account.user.id,
-        action: "run.started",
-        targetType: "run",
-        targetId: runId,
-        metadata: { state: "waiting_provider" },
-      });
+    await db.insert(auditEvents).values({
+      organizationId: account.organizationId,
+      workspaceId: conversation.workspaceId,
+      actorId: account.user.id,
+      action: "run.started",
+      targetType: "run",
+      targetId: runId,
+      metadata: { state: "waiting_provider" },
+    });
     return runId;
   });
 }
@@ -386,17 +376,15 @@ export async function createApiToken(input: {
       scopes: [...input.scopes].slice(0, 32),
       expiresAt: input.expiresAt,
     });
-    await db
-      .insert(auditEvents)
-      .values({
-        organizationId: account.organizationId,
-        workspaceId: input.workspaceId,
-        actorId: account.user.id,
-        action: "token.created",
-        targetType: "api_token",
-        targetId: id,
-        metadata: { prefix: token.prefix, scopeCount: input.scopes.length },
-      });
+    await db.insert(auditEvents).values({
+      organizationId: account.organizationId,
+      workspaceId: input.workspaceId,
+      actorId: account.user.id,
+      action: "token.created",
+      targetType: "api_token",
+      targetId: id,
+      metadata: { prefix: token.prefix, scopeCount: input.scopes.length },
+    });
   });
   return { id, token: token.raw, prefix: token.prefix };
 }
