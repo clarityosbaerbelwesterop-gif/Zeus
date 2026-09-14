@@ -15,6 +15,20 @@ env:
 jobs:
   bootstrap:
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: zeus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ci -d zeus"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v5
         with:
@@ -32,6 +46,10 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Verify migration and cross-tenant RLS
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f packages/db/migrations/0001_foundation.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/rls.sql
       - run: pnpm build
       - name: Commit lockfile and normalized formatting
         run: |
