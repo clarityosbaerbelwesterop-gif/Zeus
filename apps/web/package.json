@@ -17,6 +17,7 @@
     "@zeus/runtime": "workspace:*",
     "@zeus/security": "workspace:*",
     "@zeus/shared": "workspace:*",
+    "@zeus/workspace": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "next": "^16.0.0",
     "react": "^19.1.1",
