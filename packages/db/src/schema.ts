@@ -51,7 +51,13 @@ export const workspaces = zeus.table("workspaces", {
     .references(() => organizations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
+  objective: text("objective").notNull().default(""),
+  successCriteria: text("success_criteria").notNull().default(""),
+  currentFocus: text("current_focus").notNull().default(""),
+  status: text("status").notNull().default("active"),
+  priority: text("priority").notNull().default("medium"),
   createdBy: text("created_by").notNull(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   ...timestamps,
 });
 
@@ -100,11 +106,26 @@ export const conversations = zeus.table("conversations", {
   workspaceId: uuid("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
+  type: text("type").notNull().default("team"),
   title: text("title").notNull(),
   agentCode: text("agent_code").references(() => agentTemplates.code),
   createdBy: text("created_by").notNull(),
   ...timestamps,
 });
+
+export const conversationParticipants = zeus.table(
+  "conversation_participants",
+  {
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    agentCode: text("agent_code")
+      .notNull()
+      .references(() => agentTemplates.code),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.conversationId, table.agentCode] })],
+);
 
 export const messages = zeus.table("messages", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -114,7 +135,12 @@ export const messages = zeus.table("messages", {
   authorId: text("author_id"),
   agentCode: text("agent_code").references(() => agentTemplates.code),
   role: text("role").notNull(),
+  kind: text("kind").notNull().default("message"),
   content: text("content").notNull(),
+  runId: uuid("run_id"),
+  artifactId: uuid("artifact_id"),
+  replyToId: uuid("reply_to_id"),
+  status: text("status").notNull().default("complete"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -153,17 +179,165 @@ export const runSteps = zeus.table("run_steps", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const tasks = zeus.table("tasks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  status: text("status").notNull().default("backlog"),
+  priority: text("priority").notNull().default("medium"),
+  assignedAgent: text("assigned_agent").references(() => agentTemplates.code),
+  createdBy: text("created_by").notNull(),
+  parentTaskId: uuid("parent_task_id"),
+  dueAt: timestamp("due_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+export const taskConversations = zeus.table(
+  "task_conversations",
+  {
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.taskId, table.conversationId] })],
+);
+
+export const taskRuns = zeus.table(
+  "task_runs",
+  {
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.taskId, table.runId] })],
+);
+
+export const plans = zeus.table("plans", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  objective: text("objective").notNull().default(""),
+  status: text("status").notNull().default("draft"),
+  createdBy: text("created_by").notNull(),
+  ...timestamps,
+});
+
+export const planSteps = zeus.table("plan_steps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  planId: uuid("plan_id")
+    .notNull()
+    .references(() => plans.id, { onDelete: "cascade" }),
+  sequence: integer("sequence").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  status: text("status").notNull().default("backlog"),
+  assignedAgent: text("assigned_agent").references(() => agentTemplates.code),
+  taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+  runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const workspaceFiles = zeus.table("files", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  uploadedBy: text("uploaded_by").notNull(),
+  filename: text("filename").notNull(),
+  contentType: text("content_type").notNull(),
+  size: integer("size").notNull(),
+  storageKey: text("storage_key").notNull(),
+  checksum: text("checksum").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const fileObjects = zeus.table("file_objects", {
+  fileId: uuid("file_id")
+    .primaryKey()
+    .references(() => workspaceFiles.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  contentBase64: text("content_base64").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const artifacts = zeus.table("artifacts", {
   id: uuid("id").primaryKey().defaultRandom(),
   workspaceId: uuid("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
   runId: uuid("run_id").references(() => runs.id, { onDelete: "set null" }),
+  taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+  conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   kind: text("kind").notNull(),
+  mimeType: text("mime_type"),
   storageKey: text("storage_key"),
   contentType: text("content_type"),
   createdBy: text("created_by").notNull(),
+  creatingAgent: text("creating_agent").references(() => agentTemplates.code),
+  ...timestamps,
+});
+
+export const taskArtifacts = zeus.table(
+  "task_artifacts",
+  {
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    artifactId: uuid("artifact_id")
+      .notNull()
+      .references(() => artifacts.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.taskId, table.artifactId] })],
+);
+
+export const memoryEntries = zeus.table("memory", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  sourceType: text("source_type"),
+  sourceId: text("source_id"),
+  createdBy: text("created_by").notNull(),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+export const workspaceEvents = zeus.table("workspace_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  actorType: text("actor_type").notNull(),
+  actorId: text("actor_id"),
+  eventType: text("event_type").notNull(),
+  entityType: text("entity_type").notNull(),
+  entityId: text("entity_id").notNull(),
+  safePayload: jsonb("safe_payload").notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
