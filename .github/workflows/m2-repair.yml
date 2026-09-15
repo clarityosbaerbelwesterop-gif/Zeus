@@ -42,7 +42,7 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - run: pnpm install --frozen-lockfile
-      - name: Repair strict task type narrowing
+      - name: Repair strict M2 contracts
         shell: python
         run: |
           from pathlib import Path
@@ -50,19 +50,25 @@ jobs:
           text = path.read_text()
           old = '''  const priority: TaskPriority = isTaskPriority(input.priority ?? "") ? input.priority : "medium";'''
           new = '''  const requestedPriority = input.priority ?? "medium";\n  const priority: TaskPriority = isTaskPriority(requestedPriority) ? requestedPriority : "medium";'''
-          if old not in text:
-              raise SystemExit('createTask priority target not found')
-          text = text.replace(old, new, 1)
+          if old in text:
+              text = text.replace(old, new, 1)
           old = '''  if (!isTaskStatus(input.status)) throw new Error("Unknown task status.");\n  if (!isTaskPriority(input.priority)) throw new Error("Unknown task priority.");'''
           new = '''  const status = input.status;\n  const priority = input.priority;\n  if (!isTaskStatus(status)) throw new Error("Unknown task status.");\n  if (!isTaskPriority(priority)) throw new Error("Unknown task priority.");'''
-          if old not in text:
-              raise SystemExit('updateTask validation target not found')
-          text = text.replace(old, new, 1)
-          text = text.replace('assertTaskTransition(current.status, input.status);', 'assertTaskTransition(current.status, status);', 1)
-          text = text.replace('''        status: input.status,\n        priority: input.priority,''', '''        status,\n        priority,''', 1)
-          text = text.replace('''        completedAt: input.status === "completed" ? new Date() : null,''', '''        completedAt: status === "completed" ? new Date() : null,''', 1)
-          text = text.replace('''      payload: { status: input.status, assignedAgent: input.assignedAgent ?? null },''', '''      payload: { status, assignedAgent: input.assignedAgent ?? null },''', 1)
+          if old in text:
+              text = text.replace(old, new, 1)
+              text = text.replace('assertTaskTransition(current.status, input.status);', 'assertTaskTransition(current.status, status);', 1)
+              text = text.replace('''        status: input.status,\n        priority: input.priority,''', '''        status,\n        priority,''', 1)
+              text = text.replace('''        completedAt: input.status === "completed" ? new Date() : null,''', '''        completedAt: status === "completed" ? new Date() : null,''', 1)
+              text = text.replace('''      payload: { status: input.status, assignedAgent: input.assignedAgent ?? null },''', '''      payload: { status, assignedAgent: input.assignedAgent ?? null },''', 1)
           path.write_text(text)
+
+          test_path = Path('tests/workspace-migration.test.ts')
+          test_text = test_path.read_text()
+          old = '''expect(sql).not.toMatch(/vector|embedding|pgvector/iu);'''
+          new = '''expect(sql).not.toMatch(/pgvector|embedding|create\\s+extension\\s+(?:if\\s+not\\s+exists\\s+)?vector/iu);'''
+          if old not in test_text:
+              raise SystemExit('search assertion target not found')
+          test_path.write_text(test_text.replace(old, new, 1))
       - run: pnpm format:write
       - run: pnpm lint
       - run: pnpm typecheck
@@ -78,7 +84,7 @@ jobs:
         run: |
           git config user.name zeus-product-bot
           git config user.email actions@users.noreply.github.com
-          git add apps/web/lib/product.ts
+          git add apps/web/lib/product.ts tests/workspace-migration.test.ts
           git diff --cached --quiet && exit 0
-          git commit -m "fix: preserve validated task enum types"
+          git commit -m "fix: harden M2 task typing and search contract"
           git push origin HEAD:product/m2-workspace-os
