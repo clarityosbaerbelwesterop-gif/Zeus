@@ -24,13 +24,7 @@ export type RunStatus =
   | "needs_authorization";
 
 export type RunStepStatus =
-  | "pending"
-  | "running"
-  | "waiting"
-  | "completed"
-  | "failed"
-  | "skipped"
-  | "cancelled";
+  "pending" | "running" | "waiting" | "completed" | "failed" | "skipped" | "cancelled";
 
 export type WorkspaceRole = "owner" | "admin" | "member" | "viewer";
 
