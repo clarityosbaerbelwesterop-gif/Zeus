@@ -30,7 +30,12 @@ export async function RunPanel({
   title?: string;
 }) {
   const resolvedRunId =
-    runId ?? (await latestRuntimeRunId({ workspaceId, taskId, conversationId }));
+    runId ??
+    (await latestRuntimeRunId({
+      workspaceId,
+      ...(taskId ? { taskId } : {}),
+      ...(conversationId ? { conversationId } : {}),
+    }));
   if (!resolvedRunId) return null;
 
   const evidence = await getRunEvidence(resolvedRunId);

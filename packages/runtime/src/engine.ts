@@ -125,7 +125,7 @@ export interface RuntimeExecutionDependencies {
   readonly provider: ModelProvider;
   readonly tools: ToolRegistry;
   readonly assembleContext: (run: RuntimeRun) => Promise<AssembledContext>;
-  readonly authorizeTool: (run: RuntimeRun, tool: ToolDefinition) => Promise<void>;
+  readonly authorizeTool: (run: RuntimeRun, tool: ToolDefinition) => void | Promise<void>;
   readonly verify: (
     run: RuntimeRun,
     input: { readonly finalText: string; readonly toolCalls: readonly ToolCallEvidence[] },
