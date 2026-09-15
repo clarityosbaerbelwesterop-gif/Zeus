@@ -1,5 +1,10 @@
 from pathlib import Path
 
+p = Path("apps/web/lib/kai-coding-tools.ts")
+s = p.read_text()
+s = s.replace("    parse: input.parse,\n    execute: input.execute,", "    parse: (value) => input.parse(value),\n    execute: (value, context) => input.execute(value, context),", 1)
+p.write_text(s)
+
 p = Path("apps/web/lib/agent-runtime.ts")
 s = p.read_text()
 anchor = 'import { createOpenRouterProviderFromEnv } from "@zeus/runtime/openrouter";'
@@ -15,9 +20,7 @@ marker = '    const incomplete = calls.filter((call) => call.status !== "complet
 if marker in s:
     s = s.replace(marker, '''    const incomplete = calls.filter((call) => call.status !== "completed");
     const completionRequirement = agentRuntimePolicy(run.agent).completionRequirement;
-    const completionSatisfied =
-      !completionRequirement ||
-      calls.some((call) => call.status === "completed" && call.toolId === completionRequirement.toolId);
+    const completionSatisfied = !completionRequirement || calls.some((call) => call.status === "completed" && call.toolId === completionRequirement.toolId);
     return [''', 1)
 marker = '''      {
         status: incomplete.length === 0 ? "passed" : "failed",
