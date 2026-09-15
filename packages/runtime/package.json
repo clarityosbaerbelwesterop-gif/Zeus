@@ -4,14 +4,19 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./context": "./src/context.ts",
+    "./engine": "./src/engine.ts",
+    "./openrouter": "./src/openrouter.ts",
+    "./m4": "./src/m4-boundaries.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@zeus/agents": "workspace:*",
-    "@zeus/shared": "workspace:*"
+    "@zeus/shared": "workspace:*",
+    "@zeus/workspace": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
