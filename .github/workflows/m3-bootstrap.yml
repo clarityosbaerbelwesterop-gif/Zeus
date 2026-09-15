@@ -39,6 +39,11 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Show exact M3 Prettier repair
+        run: |
+          pnpm exec prettier --write packages/agents/src/index.ts packages/runtime/src/context.ts packages/runtime/src/engine.ts packages/runtime/src/m4-boundaries.ts packages/runtime/src/openrouter.ts
+          git diff -- packages/agents/src/index.ts packages/runtime/src/context.ts packages/runtime/src/engine.ts packages/runtime/src/m4-boundaries.ts packages/runtime/src/openrouter.ts
+          git checkout -- packages/agents/src/index.ts packages/runtime/src/context.ts packages/runtime/src/engine.ts packages/runtime/src/m4-boundaries.ts packages/runtime/src/openrouter.ts
       - run: pnpm format
       - run: pnpm lint
       - run: pnpm typecheck
