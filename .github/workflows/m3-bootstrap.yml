@@ -43,8 +43,9 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - name: Verify migrations and RLS baseline
+      - name: Verify migrations and direct runtime RLS
         run: |
           for migration in packages/db/migrations/*.sql; do psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"; done
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/rls.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/runtime_rls.sql
       - run: pnpm build
