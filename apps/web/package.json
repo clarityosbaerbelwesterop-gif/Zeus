@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@neondatabase/auth": "latest",
-    "@vercel/sandbox": "^1.2.0",
     "@zeus/agents": "workspace:*",
     "@zeus/auth": "workspace:*",
     "@zeus/db": "workspace:*",
