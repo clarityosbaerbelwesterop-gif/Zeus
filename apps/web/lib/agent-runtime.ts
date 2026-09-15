@@ -54,19 +54,8 @@ import {
 } from "@zeus/runtime/engine";
 import { createOpenRouterProviderFromEnv } from "@zeus/runtime/openrouter";
 import { safeAuditMetadata } from "@zeus/security";
-import {
-  messageSchema,
-  shortTitleSchema,
-  type RunStatus,
-  type RunStepStatus,
-} from "@zeus/shared";
-import {
-  can,
-  isMemoryType,
-  isTaskPriority,
-  isTaskStatus,
-  isWorkspaceRole,
-} from "@zeus/workspace";
+import { messageSchema, shortTitleSchema, type RunStatus, type RunStepStatus } from "@zeus/shared";
+import { can, isMemoryType, isTaskPriority, isTaskStatus, isWorkspaceRole } from "@zeus/workspace";
 import { and, asc, count, desc, eq, isNull, sql } from "drizzle-orm";
 
 const SYSTEM_RUNTIME_POLICY = [
@@ -101,7 +90,14 @@ const STEP_STATUSES = new Set<RunStepStatus>([
 ]);
 const RUN_TYPES = new Set<RunType>(["conversation_run", "task_run", "plan_step_run"]);
 const AGENT_CODES = new Set<AgentCode>(["jorge", "kai", "lora", "simon", "sara"]);
-const PLAN_STEP_STATUSES = new Set(["backlog", "ready", "in_progress", "blocked", "review", "completed"]);
+const PLAN_STEP_STATUSES = new Set([
+  "backlog",
+  "ready",
+  "in_progress",
+  "blocked",
+  "review",
+  "completed",
+]);
 
 function actorIdFromSession(session: Awaited<ReturnType<typeof requireSession>>): string {
   return String(session.user.id);
@@ -201,7 +197,9 @@ async function workspaceRole(
     await db
       .select({ role: workspaceMembers.role })
       .from(workspaceMembers)
-      .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, actorId)))
+      .where(
+        and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, actorId)),
+      )
       .limit(1)
   )[0];
   if (!row || !isWorkspaceRole(row.role)) {
@@ -222,10 +220,7 @@ async function requireWorkspaceCapability(
   }
 }
 
-async function workspaceOrganization(
-  db: ActorDatabase,
-  workspaceId: string,
-): Promise<string> {
+async function workspaceOrganization(db: ActorDatabase, workspaceId: string): Promise<string> {
   const row = (
     await db
       .select({ organizationId: workspaces.organizationId })
@@ -285,7 +280,10 @@ function runtimeStore(actorId: string): RuntimeStore {
           )[0];
           if (!created) throw new RuntimeError("INTERNAL_RUNTIME_ERROR", "Run was not created.");
           if (input.taskId) {
-            await db.insert(taskRuns).values({ taskId: input.taskId, runId: id }).onConflictDoNothing();
+            await db
+              .insert(taskRuns)
+              .values({ taskId: input.taskId, runId: id })
+              .onConflictDoNothing();
           }
           if (input.planStepId) {
             await db
@@ -355,7 +353,11 @@ function runtimeStore(actorId: string): RuntimeStore {
             .returning()
         )[0];
         if (!row) {
-          throw new RuntimeError("STALE_RUN", "Run state changed before the transition completed.", true);
+          throw new RuntimeError(
+            "STALE_RUN",
+            "Run state changed before the transition completed.",
+            true,
+          );
         }
         return toRuntimeRun(row);
       });
@@ -502,8 +504,7 @@ function runtimeStore(actorId: string): RuntimeStore {
           inputTokens: usage?.inputTokens ?? null,
           outputTokens: usage?.outputTokens ?? null,
           cachedTokens: usage?.cachedTokens ?? null,
-          estimatedCost:
-            usage?.estimatedCost === undefined ? null : usage.estimatedCost.toFixed(8),
+          estimatedCost: usage?.estimatedCost === undefined ? null : usage.estimatedCost.toFixed(8),
           latencyMs: usage?.latencyMs ?? null,
         });
       });
@@ -549,9 +550,7 @@ function runtimeStore(actorId: string): RuntimeStore {
             createdBy: actorId,
             creatingAgent: run.agent,
           });
-          const task = (
-            await db.select().from(tasks).where(eq(tasks.id, run.taskId)).limit(1)
-          )[0];
+          const task = (await db.select().from(tasks).where(eq(tasks.id, run.taskId)).limit(1))[0];
           if (task && task.status !== "completed" && task.status !== "review") {
             await db
               .update(tasks)
@@ -566,7 +565,12 @@ function runtimeStore(actorId: string): RuntimeStore {
         const expiresAt = new Date(Date.now() + ttlMs);
         const rows = await db
           .update(runtimeRuns)
-          .set({ leaseOwner: owner, leaseExpiresAt: expiresAt, heartbeatAt: new Date(), updatedAt: new Date() })
+          .set({
+            leaseOwner: owner,
+            leaseExpiresAt: expiresAt,
+            heartbeatAt: new Date(),
+            updatedAt: new Date(),
+          })
           .where(
             and(
               eq(runtimeRuns.id, runId),
@@ -695,7 +699,12 @@ function createInternalToolRegistry(): ToolRegistry {
       description: "Read the active workspace objective, focus and success criteria.",
       async execute(_input, context) {
         return withActor(context.actorId, async (db) => {
-          await requireWorkspaceCapability(db, context.actorId, context.workspaceId, "workspace.read");
+          await requireWorkspaceCapability(
+            db,
+            context.actorId,
+            context.workspaceId,
+            "workspace.read",
+          );
           const row = (
             await db
               .select({
@@ -768,7 +777,12 @@ function createInternalToolRegistry(): ToolRegistry {
       async execute(_input, context) {
         return withActor(context.actorId, (db) =>
           db
-            .select({ id: plans.id, title: plans.title, objective: plans.objective, status: plans.status })
+            .select({
+              id: plans.id,
+              title: plans.title,
+              objective: plans.objective,
+              status: plans.status,
+            })
             .from(plans)
             .where(eq(plans.workspaceId, context.workspaceId))
             .orderBy(desc(plans.updatedAt))
@@ -819,7 +833,10 @@ function createInternalToolRegistry(): ToolRegistry {
             })
             .from(memoryEntries)
             .where(
-              and(eq(memoryEntries.workspaceId, context.workspaceId), isNull(memoryEntries.archivedAt)),
+              and(
+                eq(memoryEntries.workspaceId, context.workspaceId),
+                isNull(memoryEntries.archivedAt),
+              ),
             )
             .orderBy(desc(memoryEntries.updatedAt))
             .limit(40),
@@ -844,7 +861,10 @@ function createInternalToolRegistry(): ToolRegistry {
             })
             .from(memoryEntries)
             .where(
-              and(eq(memoryEntries.workspaceId, context.workspaceId), isNull(memoryEntries.archivedAt)),
+              and(
+                eq(memoryEntries.workspaceId, context.workspaceId),
+                isNull(memoryEntries.archivedAt),
+              ),
             )
             .orderBy(desc(memoryEntries.updatedAt))
             .limit(80);
@@ -949,11 +969,17 @@ function createInternalToolRegistry(): ToolRegistry {
       allowedAgents: artifactAgents,
       async execute(input, context) {
         const type = requiredString(input, "type", 40);
-        if (!isMemoryType(type)) throw new RuntimeError("TOOL_INPUT_INVALID", "Unknown memory type.");
+        if (!isMemoryType(type))
+          throw new RuntimeError("TOOL_INPUT_INVALID", "Unknown memory type.");
         const title = shortTitleSchema.parse(requiredString(input, "title", 240));
         const content = messageSchema.parse(requiredString(input, "content", 20_000));
         return withActor(context.actorId, async (db) => {
-          await requireWorkspaceCapability(db, context.actorId, context.workspaceId, "memory.write");
+          await requireWorkspaceCapability(
+            db,
+            context.actorId,
+            context.workspaceId,
+            "memory.write",
+          );
           const id = randomUUID();
           await db.insert(memoryEntries).values({
             id,
@@ -980,7 +1006,12 @@ function createInternalToolRegistry(): ToolRegistry {
         const title = shortTitleSchema.parse(requiredString(input, "title", 240));
         const content = requiredString(input, "content", 250_000);
         return withActor(context.actorId, async (db) => {
-          await requireWorkspaceCapability(db, context.actorId, context.workspaceId, "artifact.write");
+          await requireWorkspaceCapability(
+            db,
+            context.actorId,
+            context.workspaceId,
+            "artifact.write",
+          );
           const id = randomUUID();
           await db.insert(runtimeArtifacts).values({
             id,
@@ -1264,7 +1295,9 @@ async function contextForRun(run: RuntimeRun): Promise<AssembledContext> {
       db
         .select()
         .from(memoryEntries)
-        .where(and(eq(memoryEntries.workspaceId, run.workspaceId), isNull(memoryEntries.archivedAt)))
+        .where(
+          and(eq(memoryEntries.workspaceId, run.workspaceId), isNull(memoryEntries.archivedAt)),
+        )
         .orderBy(desc(memoryEntries.updatedAt))
         .limit(20),
       db
@@ -1291,15 +1324,22 @@ async function contextForRun(run: RuntimeRun): Promise<AssembledContext> {
       successCriteria: workspace.successCriteria,
       currentFocus: workspace.currentFocus,
       ...(activePlan
-        ? { activePlan: { id: activePlan.id, title: activePlan.title, objective: activePlan.objective } }
+        ? {
+            activePlan: {
+              id: activePlan.id,
+              title: activePlan.title,
+              objective: activePlan.objective,
+            },
+          }
         : {}),
       assignedTasks: taskRows.map((task) => ({
         id: task.id,
         title: task.title,
         status: task.status,
-        assignedAgent: task.assignedAgent && AGENT_CODES.has(task.assignedAgent as AgentCode)
-          ? (task.assignedAgent as AgentCode)
-          : null,
+        assignedAgent:
+          task.assignedAgent && AGENT_CODES.has(task.assignedAgent as AgentCode)
+            ? (task.assignedAgent as AgentCode)
+            : null,
       })),
       importantMemory: memoryRows.map((entry) => ({
         id: entry.id,
@@ -1329,7 +1369,11 @@ async function contextForRun(run: RuntimeRun): Promise<AssembledContext> {
     const planStep = run.planStepId
       ? (
           await db
-            .select({ id: planSteps.id, title: planSteps.title, description: planSteps.description })
+            .select({
+              id: planSteps.id,
+              title: planSteps.title,
+              description: planSteps.description,
+            })
             .from(planSteps)
             .innerJoin(plans, eq(plans.id, planSteps.planId))
             .where(and(eq(planSteps.id, run.planStepId), eq(plans.workspaceId, run.workspaceId)))
@@ -1410,7 +1454,10 @@ function dependenciesFor(actorId: string): RuntimeExecutionDependencies {
       const policy = agentRuntimePolicy(run.agent);
       tools.authorize(tool.id, run.agent, policy.maximumSideEffect);
       if (!policy.allowedTools.includes(tool.id)) {
-        throw new RuntimeError("TOOL_PERMISSION_DENIED", "Tool is not allowed by the agent policy.");
+        throw new RuntimeError(
+          "TOOL_PERMISSION_DENIED",
+          "Tool is not allowed by the agent policy.",
+        );
       }
     },
     async hasRequiredConnection(run, provider) {
@@ -1438,7 +1485,9 @@ function dependenciesFor(actorId: string): RuntimeExecutionDependencies {
 function expectedWaitingError(error: unknown): boolean {
   return (
     error instanceof RuntimeError &&
-    ["PROVIDER_NOT_CONFIGURED", "TOOL_PERMISSION_DENIED", "CONNECTION_REQUIRED"].includes(error.code)
+    ["PROVIDER_NOT_CONFIGURED", "TOOL_PERMISSION_DENIED", "CONNECTION_REQUIRED"].includes(
+      error.code,
+    )
   );
 }
 
@@ -1489,9 +1538,10 @@ export async function sendConversationMessageAndRun(
       status: "complete",
     });
     const organizationId = await workspaceOrganization(db, conversation.workspaceId);
-    const agent = conversation.agentCode && AGENT_CODES.has(conversation.agentCode as AgentCode)
-      ? (conversation.agentCode as AgentCode)
-      : "jorge";
+    const agent =
+      conversation.agentCode && AGENT_CODES.has(conversation.agentCode as AgentCode)
+        ? (conversation.agentCode as AgentCode)
+        : "jorge";
     return {
       organizationId,
       workspaceId: conversation.workspaceId,
@@ -1531,20 +1581,29 @@ export async function startTaskRun(workspaceId: string, taskId: string): Promise
         .limit(1)
     )[0];
     if (!task) throw new RuntimeError("TOOL_INPUT_INVALID", "Task not found.");
-    const assigned = task.assignedAgent && AGENT_CODES.has(task.assignedAgent as AgentCode)
-      ? (task.assignedAgent as AgentCode)
-      : "jorge";
+    const assigned =
+      task.assignedAgent && AGENT_CODES.has(task.assignedAgent as AgentCode)
+        ? (task.assignedAgent as AgentCode)
+        : "jorge";
     const enabled = (
       await db
         .select({ agentCode: workspaceAgents.agentCode })
         .from(workspaceAgents)
-        .where(and(eq(workspaceAgents.workspaceId, workspaceId), eq(workspaceAgents.agentCode, assigned)))
+        .where(
+          and(
+            eq(workspaceAgents.workspaceId, workspaceId),
+            eq(workspaceAgents.agentCode, assigned),
+          ),
+        )
         .limit(1)
     )[0];
     if (!enabled) throw new RuntimeError("TOOL_INPUT_INVALID", "Assigned agent is not enabled.");
     const organizationId = await workspaceOrganization(db, workspaceId);
     if (task.status === "backlog" || task.status === "ready") {
-      await db.update(tasks).set({ status: "in_progress", updatedAt: new Date() }).where(eq(tasks.id, taskId));
+      await db
+        .update(tasks)
+        .set({ status: "in_progress", updatedAt: new Date() })
+        .where(eq(tasks.id, taskId));
     }
     return {
       organizationId,
@@ -1608,8 +1667,16 @@ export async function getRunEvidence(runId: string): Promise<{
         .from(runtimeRunSteps)
         .where(eq(runtimeRunSteps.runId, runId))
         .orderBy(asc(runtimeRunSteps.ordinal)),
-      db.select().from(runEvents).where(eq(runEvents.runId, runId)).orderBy(asc(runEvents.createdAt)),
-      db.select().from(toolCalls).where(eq(toolCalls.runId, runId)).orderBy(asc(toolCalls.createdAt)),
+      db
+        .select()
+        .from(runEvents)
+        .where(eq(runEvents.runId, runId))
+        .orderBy(asc(runEvents.createdAt)),
+      db
+        .select()
+        .from(toolCalls)
+        .where(eq(toolCalls.runId, runId))
+        .orderBy(asc(toolCalls.createdAt)),
       db
         .select()
         .from(verificationResults)
