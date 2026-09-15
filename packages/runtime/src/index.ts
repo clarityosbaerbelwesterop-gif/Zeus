@@ -20,6 +20,7 @@ export const RUNTIME_ERROR_CODES = [
   "APPROVAL_REQUIRED",
   "RUN_CANCELLED",
   "RUN_LIMIT_EXCEEDED",
+  "REPEATED_TOOL_CALL",
   "RUN_LEASE_CONFLICT",
   "STALE_RUN",
   "CONTEXT_ASSEMBLY_FAILED",
@@ -46,6 +47,7 @@ export interface RuntimePolicy {
   readonly maxToolPayloadBytes: number;
   readonly maxConsecutiveFailures: number;
   readonly maxRepeatedToolCall: number;
+  readonly maxRepeatedIdenticalToolCalls: number;
   readonly maxRunTokens?: number;
   readonly maxEstimatedCost?: number;
 }
@@ -57,6 +59,7 @@ export const DEFAULT_RUNTIME_POLICY: RuntimePolicy = Object.freeze({
   maxToolPayloadBytes: 64_000,
   maxConsecutiveFailures: 3,
   maxRepeatedToolCall: 2,
+  maxRepeatedIdenticalToolCalls: 2,
 });
 
 const runTransitions: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
@@ -144,7 +147,7 @@ export interface ModelOutput {
 
 export interface ModelStreamChunk {
   readonly textDelta?: string;
-  readonly usage?: ModelUsage;
+  readonly usage?: ModelUsage | undefined;
   readonly done?: boolean;
 }
 
