@@ -5,7 +5,7 @@ on:
     branches: [product/m3-agent-runtime]
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   NEON_AUTH_BASE_URL: https://auth.example.invalid/zeus/auth
@@ -39,16 +39,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Normalize M3 formatting once
-        run: |
-          pnpm exec prettier --write packages/agents/src/index.ts packages/runtime/src/context.ts packages/runtime/src/engine.ts packages/runtime/src/m4-boundaries.ts packages/runtime/src/openrouter.ts
-          if ! git diff --quiet; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add packages/agents/src/index.ts packages/runtime/src/context.ts packages/runtime/src/engine.ts packages/runtime/src/m4-boundaries.ts packages/runtime/src/openrouter.ts
-            git commit -m "style(m3): normalize runtime formatting"
-            git push origin HEAD:product/m3-agent-runtime
-          fi
       - run: pnpm format
       - run: pnpm lint
       - run: pnpm typecheck
