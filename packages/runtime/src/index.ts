@@ -16,8 +16,12 @@ export const RUNTIME_ERROR_CODES = [
   "TOOL_TIMEOUT",
   "TOOL_EXECUTION_FAILED",
   "WORKSPACE_ACCESS_DENIED",
+  "CONNECTION_REQUIRED",
+  "APPROVAL_REQUIRED",
   "RUN_CANCELLED",
   "RUN_LIMIT_EXCEEDED",
+  "RUN_LEASE_CONFLICT",
+  "STALE_RUN",
   "CONTEXT_ASSEMBLY_FAILED",
   "VERIFICATION_FAILED",
   "INTERNAL_RUNTIME_ERROR",
@@ -67,14 +71,14 @@ const runTransitions: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
     "needs_user_input",
     "needs_authorization",
   ],
-  waiting: ["running", "failed", "cancelled", "paused"],
+  waiting: ["running", "failed", "cancelled", "paused", "needs_user_input", "needs_authorization"],
   verifying: ["completed", "failed", "cancelled"],
   completed: [],
   failed: [],
   cancelled: [],
   paused: ["running", "cancelled", "failed"],
-  needs_user_input: ["running", "cancelled", "failed"],
-  needs_authorization: ["running", "cancelled", "failed"],
+  needs_user_input: ["running", "waiting", "cancelled", "failed"],
+  needs_authorization: ["running", "waiting", "cancelled", "failed"],
 };
 
 const stepTransitions: Readonly<Record<RunStepStatus, readonly RunStepStatus[]>> = {
@@ -102,22 +106,24 @@ export function assertRunStepTransition(from: RunStepStatus, to: RunStepStatus):
   }
 }
 
+export interface ModelToolCall {
+  readonly id: string;
+  readonly toolId: string;
+  readonly input: unknown;
+}
+
 export interface ModelMessage {
   readonly role: "system" | "user" | "assistant" | "tool";
   readonly content: string;
   readonly toolCallId?: string;
+  readonly toolCalls?: readonly ModelToolCall[];
 }
 
 export interface ModelInput {
   readonly system: string;
   readonly messages: readonly ModelMessage[];
   readonly tools?: readonly ModelToolDescription[];
-}
-
-export interface ModelToolCall {
-  readonly id: string;
-  readonly toolId: string;
-  readonly input: unknown;
+  readonly structuredOutputSchema?: unknown;
 }
 
 export interface ModelUsage {
@@ -125,6 +131,7 @@ export interface ModelUsage {
   readonly outputTokens?: number;
   readonly cachedTokens?: number;
   readonly estimatedCost?: number;
+  readonly latencyMs?: number;
 }
 
 export interface ModelOutput {
@@ -135,6 +142,12 @@ export interface ModelOutput {
   readonly usage?: ModelUsage;
 }
 
+export interface ModelStreamChunk {
+  readonly textDelta?: string;
+  readonly usage?: ModelUsage;
+  readonly done?: boolean;
+}
+
 export interface ModelProvider {
   readonly id: string;
   readonly configured: boolean;
@@ -142,6 +155,7 @@ export interface ModelProvider {
     "stream" | "tools" | "structured_output" | "usage" | "cancellation"
   >;
   generate(input: ModelInput, signal: AbortSignal): Promise<ModelOutput>;
+  stream?(input: ModelInput, signal: AbortSignal): AsyncIterable<ModelStreamChunk>;
 }
 
 export interface ModelToolDescription {
@@ -165,8 +179,11 @@ export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
   readonly id: string;
   readonly name: string;
   readonly description: string;
+  readonly inputSchema: unknown;
+  readonly outputContract: string;
   readonly sideEffect: ToolSideEffect;
   readonly allowedAgents: readonly AgentCode[];
+  readonly workspaceRequired: boolean;
   readonly requiredConnection?: string;
   readonly timeoutMs: number;
   parse(input: unknown): TInput;
