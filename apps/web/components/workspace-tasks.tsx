@@ -1,6 +1,7 @@
 import { TASK_PRIORITIES, TASK_STATUSES } from "@zeus/workspace";
-import { createTaskAction, updateTaskAction } from "@/app/app/actions";
+import { createTaskAction, runTaskAction, updateTaskAction } from "@/app/app/actions";
 import type { WorkspacePageData } from "@/lib/product";
+import { RunPanel } from "./workspace-run-panel";
 import { EmptyState, SectionHeader } from "./workspace-ui";
 
 export function TasksView({ data, canWrite }: { data: WorkspacePageData; canWrite: boolean }) {
@@ -14,6 +15,9 @@ export function TasksView({ data, canWrite }: { data: WorkspacePageData; canWrit
     { status: "review", label: "Review" },
     { status: "completed", label: "Done" },
   ];
+  const recentExecutedTask = data.tasks.find((task) =>
+    ["in_progress", "review", "blocked", "completed"].includes(task.status),
+  );
 
   return (
     <div className="mx-auto max-w-[1300px]">
@@ -73,9 +77,18 @@ export function TasksView({ data, canWrite }: { data: WorkspacePageData; canWrit
         </form>
       ) : null}
 
+      {recentExecutedTask ? (
+        <RunPanel
+          workspaceId={workspace.id}
+          taskId={recentExecutedTask.id}
+          view="tasks"
+          title={`Latest run · ${recentExecutedTask.title}`}
+        />
+      ) : null}
+
       {data.tasks.length ? (
         <>
-          <div className="task-board grid gap-3 xl:grid-cols-6">
+          <div className="task-board mt-7 grid gap-3 xl:grid-cols-6">
             {columns.map((column) => (
               <section
                 key={column.status}
@@ -152,6 +165,7 @@ function TaskCard({
   agents: WorkspacePageData["agents"];
   canWrite: boolean;
 }) {
+  const executable = Boolean(task.assignedAgent) && task.status !== "completed";
   return (
     <div className="rounded-xl border border-[var(--line)] bg-white/65 p-3">
       <p className="text-sm font-medium leading-5">{task.title}</p>
@@ -163,6 +177,15 @@ function TaskCard({
       <p className="mt-2 text-[11px] uppercase tracking-wider text-[var(--muted)]">
         {task.assignedAgent ?? "unassigned"} · {task.priority}
       </p>
+      {canWrite && executable ? (
+        <form action={runTaskAction} className="mt-3">
+          <input type="hidden" name="workspaceId" value={workspaceId} />
+          <input type="hidden" name="taskId" value={task.id} />
+          <button className="w-full rounded-lg bg-[var(--ink)] px-2 py-1.5 text-xs font-medium text-white">
+            Run with {task.assignedAgent}
+          </button>
+        </form>
+      ) : null}
       {canWrite ? (
         <form
           action={updateTaskAction}
