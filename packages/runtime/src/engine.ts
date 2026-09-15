@@ -6,7 +6,7 @@ import {
   DEFAULT_RUNTIME_POLICY,
   ProviderNotConfiguredError,
   RuntimeError,
-  ToolRegistry,
+  type ToolRegistry,
   assertRunTransition,
   retryDelayMs,
   shouldRetry,
@@ -472,7 +472,7 @@ export async function executeRun(
                   ? error
                   : new RuntimeError("TOOL_EXECUTION_FAILED", `Tool ${tool.id} failed.`);
               await dependencies.store.updateStep(toolStep.id, "failed", {
-                safeDetail: runtimeError.safeMessage,
+                safeDetail: runtimeError.message,
                 errorCode: runtimeError.code,
               });
               if (consecutiveFailures >= policy.maxConsecutiveFailures)
@@ -531,7 +531,7 @@ export async function executeRun(
     if (activeStepId)
       await dependencies.store
         .updateStep(activeStepId, controller.signal.aborted ? "cancelled" : "failed", {
-          safeDetail: runtimeError.safeMessage,
+          safeDetail: runtimeError.message,
           errorCode: runtimeError.code,
         })
         .catch(() => undefined);
@@ -550,7 +550,7 @@ export async function executeRun(
           current.id,
           current.status,
           target,
-          runtimeError.safeMessage,
+          runtimeError.message,
         );
       } catch {
         /* preserve original failure */
@@ -635,7 +635,7 @@ export async function failRun(
   error: RuntimeError,
 ): Promise<RuntimeRun> {
   assertRunTransition(run.status, "failed");
-  const failed = await store.transition(run.id, run.status, "failed", error.safeMessage);
+  const failed = await store.transition(run.id, run.status, "failed", error.message);
   await store.recordEvent(failed, "run.failed", { errorCode: error.code });
   return failed;
 }
