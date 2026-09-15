@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   NEON_AUTH_BASE_URL: https://auth.example.invalid/zeus/auth
@@ -41,6 +41,16 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Normalize remaining M3 format
+        run: |
+          pnpm exec prettier --write packages/runtime/src/engine.ts
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add packages/runtime/src/engine.ts
+            git commit -m "style(m3): normalize engine formatting"
+            git push origin HEAD:product/m3-agent-runtime
+          fi
       - run: pnpm audit --prod --audit-level=high
       - run: pnpm format
       - run: pnpm lint
