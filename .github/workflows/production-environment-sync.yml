@@ -6,11 +6,10 @@ on:
 permissions:
   contents: read
 
-environment: production
-
 jobs:
   validate:
     runs-on: ubuntu-24.04
+    environment: production
     env:
       UNOROUTER_API_KEY_1: ${{ secrets.UNOROUTER_API_KEY_1 }}
       UNOROUTER_API_KEY_2: ${{ secrets.UNOROUTER_API_KEY_2 }}
