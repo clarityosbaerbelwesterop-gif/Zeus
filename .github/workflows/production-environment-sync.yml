@@ -1,0 +1,50 @@
+name: Production Environment Sync
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+environment: production
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    env:
+      UNOROUTER_API_KEY_1: ${{ secrets.UNOROUTER_API_KEY_1 }}
+      UNOROUTER_API_KEY_2: ${{ secrets.UNOROUTER_API_KEY_2 }}
+      ZEUS_CREDENTIAL_KEY_V1: ${{ secrets.ZEUS_CREDENTIAL_KEY_V1 }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Validate required secret presence without disclosure
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in UNOROUTER_API_KEY_1 UNOROUTER_API_KEY_2 ZEUS_CREDENTIAL_KEY_V1; do
+            if [ -z "${!name:-}" ]; then
+              printf '%s: missing\n' "$name"
+              missing=1
+            else
+              printf '%s: configured\n' "$name"
+            fi
+          done
+          exit "$missing"
+      - name: Validate Vercel management authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
+            echo "Vercel environment mutation is blocked until canonical project management credentials/IDs are configured."
+            exit 1
+          fi
+          echo "Vercel management authority: configured"
+      - name: Reconciliation safety boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Secret presence validated. This workflow intentionally does not enumerate repository secrets or write any service key into Neon."
+          echo "Environment mutation remains disabled until the canonical Zeus Vercel project is conclusively identified."
