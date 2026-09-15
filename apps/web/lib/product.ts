@@ -118,9 +118,15 @@ async function recordEvent(
     audit?: boolean;
   },
 ): Promise<void> {
+  const [workspace] = await db
+    .select({ organizationId: workspaces.organizationId })
+    .from(workspaces)
+    .where(eq(workspaces.id, input.workspaceId))
+    .limit(1);
+  if (!workspace) throw new Error("Workspace not found.");
   const safePayload = safeAuditMetadata(input.payload ?? {});
   await db.insert(workspaceEvents).values({
-    organizationId: account.organizationId,
+    organizationId: workspace.organizationId,
     workspaceId: input.workspaceId,
     actorType: input.actorType ?? "user",
     actorId: input.actorId === undefined ? account.user.id : input.actorId,
@@ -131,7 +137,7 @@ async function recordEvent(
   });
   if (input.audit) {
     await db.insert(auditEvents).values({
-      organizationId: account.organizationId,
+      organizationId: workspace.organizationId,
       workspaceId: input.workspaceId,
       actorId: account.user.id,
       action: input.eventType,
@@ -213,6 +219,9 @@ async function ensureDirectConversation(
   workspaceId: string,
   agentCode: AgentCode,
 ): Promise<string> {
+  await db.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${workspaceId + ":" + agentCode}, 0))`,
+  );
   const existing = (
     await db
       .select({ id: conversations.id })
@@ -421,7 +430,7 @@ export async function createConversation(
 ): Promise<string> {
   const account = await bootstrapAccount();
   const conversationId = randomUUID();
-  await withActor(account.user.id, async (db) => {
+  return withActor(account.user.id, async (db) => {
     await requireCapability(db, account.user.id, workspaceId, "conversation.write");
     if (agentCode) {
       if (!knownAgent(agentCode)) throw new Error("Unknown agent.");
@@ -452,13 +461,8 @@ export async function createConversation(
       entityId: conversationId,
       payload: { participantCount: enabled.length },
     });
+    return conversationId;
   });
-  if (agentCode) {
-    return withActor(account.user.id, async (db) =>
-      ensureDirectConversation(db, account.user.id, workspaceId, agentCode),
-    );
-  }
-  return conversationId;
 }
 
 export async function sendMessage(conversationId: string, content: string): Promise<string> {
@@ -667,11 +671,13 @@ export async function addPlanStep(input: {
   const stepId = randomUUID();
   await withActor(account.user.id, async (db) => {
     await requireCapability(db, account.user.id, input.workspaceId, "plan.write");
-    const plan = (await db.select().from(plans).where(eq(plans.id, input.planId)).limit(1))[0];
+    const plan = (
+      await db.select().from(plans).where(eq(plans.id, input.planId)).limit(1).for("update")
+    )[0];
     if (!plan || plan.workspaceId !== input.workspaceId) throw new Error("Plan not found.");
     if (input.assignedAgent) await enabledAgent(db, input.workspaceId, input.assignedAgent);
     const [row] = await db
-      .select({ value: count() })
+      .select({ value: sql<number>`coalesce(max(${planSteps.sequence}), 0)` })
       .from(planSteps)
       .where(eq(planSteps.planId, input.planId));
     const sequence = Number(row?.value ?? 0) + 1;
@@ -707,9 +713,15 @@ export async function uploadWorkspaceFile(workspaceId: string, file: File): Prom
   const storageKey = fileStorageKey(workspaceId, fileId);
   await withActor(account.user.id, async (db) => {
     await requireCapability(db, account.user.id, workspaceId, "file.write");
+    const [workspace] = await db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+    if (!workspace) throw new Error("Workspace not found.");
     await db.insert(workspaceFiles).values({
       id: fileId,
-      organizationId: account.organizationId,
+      organizationId: workspace.organizationId,
       workspaceId,
       uploadedBy: account.user.id,
       filename,
@@ -1227,6 +1239,7 @@ export async function workspacePageData(
   conversationId?: string,
   view = "home",
   searchQuery = "",
+  planId?: string,
 ) {
   const account = await bootstrapAccount();
   return withActor(account.user.id, async (db) => {
@@ -1354,15 +1367,17 @@ export async function workspacePageData(
           )
       : [];
     const activeConversation = conversationId
-      ? (conversationRows.find((item) => item.id === conversationId) ?? conversationRows[0])
-      : conversationRows[0];
+      ? conversationRows.find((item) => item.id === conversationId)
+      : undefined;
     const messageRows = activeConversation
       ? await db
           .select()
           .from(messages)
           .where(eq(messages.conversationId, activeConversation.id))
-          .orderBy(asc(messages.createdAt))
+          .orderBy(desc(messages.createdAt))
+          .limit(100)
       : [];
+    messageRows.reverse();
     const stepRows = runRows[0]
       ? await db
           .select()
@@ -1370,7 +1385,9 @@ export async function workspacePageData(
           .where(eq(runSteps.runId, runRows[0].id))
           .orderBy(asc(runSteps.ordinal))
       : [];
-    const activePlan = planRows.find((plan) => plan.status === "active") ?? planRows[0];
+    const activePlan = planId
+      ? planRows.find((plan) => plan.id === planId)
+      : (planRows.find((plan) => plan.status === "active") ?? planRows[0]);
     const activePlanSteps = activePlan
       ? normalizeSequence(
           await db.select().from(planSteps).where(eq(planSteps.planId, activePlan.id)),
