@@ -87,6 +87,119 @@ export const AGENT_TEMPLATES: readonly AgentTemplate[] = Object.freeze([
   },
 ]);
 
+export type AgentContextCategory =
+  | "request"
+  | "policy"
+  | "task"
+  | "workspace"
+  | "memory"
+  | "conversation"
+  | "artifacts";
+
+export interface AgentRuntimePolicy {
+  readonly instructions: string;
+  readonly allowedTools: readonly string[];
+  readonly maximumSideEffect: 0 | 1;
+  readonly contextCategories: readonly AgentContextCategory[];
+  readonly verification: "deterministic";
+}
+
+const commonReadTools = [
+  "workspace.read",
+  "tasks.list",
+  "tasks.get",
+  "plans.list",
+  "plans.get",
+  "memory.search",
+  "memory.list",
+  "artifacts.list",
+  "conversations.recent",
+  "activity.list",
+  "agents.list_workspace_agents",
+] as const;
+
+export const AGENT_RUNTIME_POLICIES: Readonly<Record<AgentCode, AgentRuntimePolicy>> = {
+  jorge: {
+    instructions:
+      "Coordinate the workspace using persisted plans and tasks. Prefer explicit assignments, concise progress summaries, and deterministic verification of every mutation.",
+    allowedTools: [
+      ...commonReadTools,
+      "tasks.create",
+      "tasks.update",
+      "tasks.assign",
+      "tasks.complete",
+      "plans.create",
+      "plans.add_step",
+      "plans.update_step",
+      "memory.create",
+      "artifacts.create_text",
+    ],
+    maximumSideEffect: 1,
+    contextCategories: [
+      "request",
+      "policy",
+      "task",
+      "workspace",
+      "memory",
+      "conversation",
+      "artifacts",
+    ],
+    verification: "deterministic",
+  },
+  kai: {
+    instructions:
+      "Act as a senior software engineer using only the workspace information and internal tools available in M3. Create technical plans, reports, and code/text artifacts; do not claim shell or repository execution.",
+    allowedTools: [...commonReadTools, "memory.create", "artifacts.create_text"],
+    maximumSideEffect: 1,
+    contextCategories: [
+      "request",
+      "policy",
+      "task",
+      "workspace",
+      "memory",
+      "conversation",
+      "artifacts",
+    ],
+    verification: "deterministic",
+  },
+  lora: {
+    instructions:
+      "Analyze product and interface context, then produce concrete UX/UI recommendations and design artifacts without inventing external research or completed implementation.",
+    allowedTools: [...commonReadTools, "memory.create", "artifacts.create_text"],
+    maximumSideEffect: 1,
+    contextCategories: ["request", "policy", "task", "workspace", "memory", "artifacts"],
+    verification: "deterministic",
+  },
+  simon: {
+    instructions:
+      "Review available workspace evidence for correctness, security, and regressions. Produce verification plans and security reports, and distinguish observed evidence from assumptions.",
+    allowedTools: [...commonReadTools, "memory.create", "artifacts.create_text"],
+    maximumSideEffect: 1,
+    contextCategories: [
+      "request",
+      "policy",
+      "task",
+      "workspace",
+      "memory",
+      "conversation",
+      "artifacts",
+    ],
+    verification: "deterministic",
+  },
+  sara: {
+    instructions:
+      "Use workspace commercial context to prepare sales plans and outbound drafts. Do not perform external account actions or claim messages were sent.",
+    allowedTools: [...commonReadTools, "memory.create", "artifacts.create_text"],
+    maximumSideEffect: 1,
+    contextCategories: ["request", "policy", "task", "workspace", "memory", "artifacts"],
+    verification: "deterministic",
+  },
+};
+
 export function agentTemplate(code: string): AgentTemplate | undefined {
   return AGENT_TEMPLATES.find((agent) => agent.code === code);
+}
+
+export function agentRuntimePolicy(code: AgentCode): AgentRuntimePolicy {
+  return AGENT_RUNTIME_POLICIES[code];
 }
