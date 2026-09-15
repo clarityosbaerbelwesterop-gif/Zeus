@@ -1,31 +1,35 @@
 import { expect, test } from "@playwright/test";
 
-const live = process.env.ZEUS_E2E_LIVE === "1";
-test.skip(!live, "Runs only against an isolated configured Preview/Neon environment.");
+test.skip(process.env.ZEUS_E2E_LIVE !== "1", "Requires isolated Neon Auth and database.");
 
-test("new user can persist a workspace, conversation, message and waiting run across reload", async ({
+test("workspace views, selected plans and a persisted conversation survive reload", async ({
   page,
 }) => {
-  const unique = `zeus-e2e-${Date.now()}@example.com`;
   await page.goto("/auth/sign-up");
   await page.getByLabel("Name").fill("Zeus E2E");
-  await page.getByLabel("Email").fill(unique);
-  await page.getByLabel("Password").fill(`Zeus-${Date.now()}-secure`);
+  await page.getByLabel("Email").fill(`zeus-${crypto.randomUUID()}@example.test`);
+  await page.getByLabel("Password").fill(`Zeus-${crypto.randomUUID()}-secure`);
   await page.getByRole("button", { name: "Create account" }).click();
   await page.waitForURL(/\/app/u);
   await page.getByPlaceholder("Launch Zeus").fill("E2E Workspace");
   await page.getByRole("button", { name: "Create workspace" }).click();
-  await page.getByRole("button", { name: /Kai/u }).click();
-  await page
-    .getByPlaceholder("Give Zeus real work…")
-    .fill("Persist this task without faking an AI response.");
-  await page
-    .locator("form")
-    .filter({ has: page.getByPlaceholder("Give Zeus real work…") })
-    .getByRole("button")
-    .click();
-  await expect(page.getByText("AI provider not configured yet.")).toBeVisible();
-  await expect(page.getByText("Waiting for AI provider")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "E2E Workspace", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Plans", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Execution strategies" })).toBeVisible();
+  for (const title of ["First plan", "Second plan"]) {
+    await page.getByPlaceholder("Plan title").fill(title);
+    await page.getByRole("button", { name: "Create plan", exact: true }).click();
+    await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+  }
+  await page.getByRole("link", { name: /First plan/u }).click();
+  await expect(page.getByRole("heading", { name: "First plan", exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByText("Persist this task without faking an AI response.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "First plan", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: /^Kai/u }).first().click();
+  await page.getByRole("textbox", { name: "Message", exact: true }).fill("Persist this request.");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("Persist this request.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/AI provider not configured\. Your message/u)).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Persist this request.", { exact: true })).toBeVisible();
 });

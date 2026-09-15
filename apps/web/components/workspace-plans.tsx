@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { addPlanStepAction, createPlanAction } from "@/app/app/actions";
 import type { WorkspacePageData } from "@/lib/product";
 import { EmptyState, SectionHeader } from "./workspace-ui";
@@ -18,9 +19,10 @@ export function PlansView({ data, canWrite }: { data: WorkspacePageData; canWrit
           <h2 className="mb-3 text-sm font-semibold">Workspace plans</h2>
           <div className="space-y-2">
             {data.plans.map((plan) => (
-              <div
+              <Link
+                href={`/app?workspace=${workspace.id}&view=plans&plan=${plan.id}`}
                 key={plan.id}
-                className={`rounded-2xl border border-[var(--line)] p-4 ${
+                className={`block rounded-2xl border border-[var(--line)] p-4 ${
                   plan.id === data.activePlan?.id ? "bg-white/65" : "bg-white/25"
                 }`}
               >
@@ -29,7 +31,7 @@ export function PlansView({ data, canWrite }: { data: WorkspacePageData; canWrit
                   <span className="text-xs capitalize text-[var(--muted)]">{plan.status}</span>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{plan.objective}</p>
-              </div>
+              </Link>
             ))}
             {!data.plans.length ? (
               <EmptyState

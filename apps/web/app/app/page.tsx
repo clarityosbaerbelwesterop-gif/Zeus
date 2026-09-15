@@ -11,6 +11,7 @@ export default async function WorkspacePage({
     conversation?: string;
     view?: string;
     q?: string;
+    plan?: string;
   }>;
 }) {
   const query = await searchParams;
@@ -19,6 +20,7 @@ export default async function WorkspacePage({
     query.conversation,
     query.view ?? "home",
     query.q ?? "",
+    query.plan,
   );
   return <AppShell data={data} />;
 }

@@ -77,6 +77,7 @@ export function ConversationView({ data }: { data: WorkspacePageData }) {
             required
             maxLength={20000}
             name="message"
+            aria-label="Message"
             rows={2}
             placeholder="Give the team real work…"
             className="w-full resize-none bg-transparent px-2 py-2 text-sm outline-none"
@@ -85,7 +86,10 @@ export function ConversationView({ data }: { data: WorkspacePageData }) {
             <span className="text-[11px] text-[var(--muted)]">
               Safe output and operational events are persisted. Hidden reasoning is not.
             </span>
-            <button className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--ink)] text-white">
+            <button
+              aria-label="Send message"
+              className="grid size-9 shrink-0 place-items-center rounded-full bg-[var(--ink)] text-white"
+            >
               ↑
             </button>
           </div>
