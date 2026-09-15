@@ -69,6 +69,7 @@ CREATE TABLE zeus.execution_checkpoints (
   execution_session_id uuid NOT NULL REFERENCES zeus.execution_sessions(id) ON DELETE CASCADE,
   label text NOT NULL,
   head_sha text NOT NULL,
+  worktree_sha text,
   safe_diff_summary text NOT NULL DEFAULT '',
   created_by text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -77,6 +78,7 @@ CREATE TABLE zeus.execution_checkpoints (
   CONSTRAINT execution_checkpoints_run_workspace FOREIGN KEY(run_id,workspace_id)
     REFERENCES zeus.runs(id,workspace_id) ON DELETE CASCADE,
   CONSTRAINT execution_checkpoints_head_sha_check CHECK(head_sha ~ '^[0-9A-Fa-f]{40}$'),
+  CONSTRAINT execution_checkpoints_worktree_sha_check CHECK(worktree_sha IS NULL OR worktree_sha ~ '^[0-9A-Fa-f]{40}$'),
   CONSTRAINT execution_checkpoints_label_bound CHECK(octet_length(label) BETWEEN 1 AND 240),
   CONSTRAINT execution_checkpoints_summary_bound CHECK(octet_length(safe_diff_summary) <= 4096)
 );
