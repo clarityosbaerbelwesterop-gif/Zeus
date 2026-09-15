@@ -84,7 +84,7 @@ export async function RunPanel({
       </div>
 
       <div className="grid gap-0 md:grid-cols-[1.25fr_.75fr]">
-        <div className="border-b border-[var(--line)] p-4 sm:p-5 md:border-b-0 md:border-r">
+        <div className="border-b border-[var(--line)] p-4 md:border-b-0 md:border-r sm:p-5">
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em]">Execution</h3>
           <div className="space-y-3">
             {steps.map((step) => (
@@ -101,7 +101,9 @@ export async function RunPanel({
                 <div className="min-w-0">
                   <p className="font-medium">{step.title}</p>
                   {step.safeDetail ? (
-                    <p className="mt-0.5 text-xs leading-5 text-[var(--muted)]">{step.safeDetail}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-[var(--muted)]">
+                      {step.safeDetail}
+                    </p>
                   ) : null}
                 </div>
                 <span className="text-[11px] capitalize text-[var(--muted)]">
@@ -135,10 +137,13 @@ export async function RunPanel({
               </dd>
             </div>
             {verification.map((check) => (
-              <div key={check.id} className="rounded-xl border border-[var(--line)] bg-white/50 p-3">
+              <div
+                key={check.id}
+                className="rounded-xl border border-[var(--line)] bg-white/50 p-3"
+              >
                 <div className="flex items-center justify-between gap-2">
                   <dt className="font-medium">{check.checkName.replaceAll("_", " ")}</dt>
-                  <dd className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
+                  <dd className="uppercase tracking-wider text-[10px] text-[var(--muted)]">
                     {check.status}
                   </dd>
                 </div>
