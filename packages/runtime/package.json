@@ -15,8 +15,7 @@
   },
   "dependencies": {
     "@zeus/agents": "workspace:*",
-    "@zeus/shared": "workspace:*",
-    "@zeus/workspace": "workspace:*"
+    "@zeus/shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
