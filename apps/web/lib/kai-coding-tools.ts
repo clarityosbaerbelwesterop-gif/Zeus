@@ -111,8 +111,8 @@ function tool<TInput extends Readonly<Record<string, unknown>>, TOutput>(input: 
     allowedAgents: ["kai"],
     workspaceRequired: true,
     timeoutMs: input.timeoutMs ?? 10 * 60_000,
-    parse: input.parse,
-    execute: input.execute,
+    parse: (value) => input.parse(value),
+    execute: (value, context) => input.execute(value, context),
     summarizeInput: input.summarizeInput ?? (() => `${input.id} requested.`),
     summarizeOutput: input.summarizeOutput ?? (() => `${input.id} completed.`),
   };
