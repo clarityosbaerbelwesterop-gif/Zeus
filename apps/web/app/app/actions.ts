@@ -5,6 +5,12 @@ import { isMemoryType, isTaskPriority, isTaskStatus, isWorkspaceRole } from "@ze
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  retryAgentRun,
+  sendConversationMessageAndRun,
+  startTaskRun,
+  stopAgentRun,
+} from "@/lib/agent-runtime";
+import {
   addPlanStep,
   archiveMemory,
   archiveWorkspace,
@@ -14,7 +20,6 @@ import {
   createPlan,
   createTask,
   createWorkspace,
-  sendMessage,
   toggleWorkspaceAgent,
   updateMemory,
   updateTask,
@@ -104,8 +109,34 @@ export async function createConversationAction(formData: FormData) {
 export async function sendMessageAction(formData: FormData) {
   const conversationId = field(formData, "conversationId");
   const workspaceId = field(formData, "workspaceId");
-  await sendMessage(conversationId, field(formData, "message"));
+  await sendConversationMessageAndRun(conversationId, field(formData, "message"));
+  revalidatePath("/app");
   redirect(`/app?workspace=${workspaceId}&conversation=${conversationId}`);
+}
+
+export async function runTaskAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  await startTaskRun(workspaceId, field(formData, "taskId"));
+  revalidatePath("/app");
+  redirect(workspaceLocation(workspaceId, "tasks"));
+}
+
+export async function stopRunAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  await stopAgentRun(field(formData, "runId"));
+  revalidatePath("/app");
+  const conversationId = optionalField(formData, "conversationId");
+  if (conversationId) redirect(`/app?workspace=${workspaceId}&conversation=${conversationId}`);
+  redirect(workspaceLocation(workspaceId, optionalField(formData, "view") ?? undefined));
+}
+
+export async function retryRunAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  await retryAgentRun(field(formData, "runId"));
+  revalidatePath("/app");
+  const conversationId = optionalField(formData, "conversationId");
+  if (conversationId) redirect(`/app?workspace=${workspaceId}&conversation=${conversationId}`);
+  redirect(workspaceLocation(workspaceId, optionalField(formData, "view") ?? undefined));
 }
 
 export async function createTaskAction(formData: FormData) {

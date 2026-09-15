@@ -1,6 +1,7 @@
 import { MEMORY_TYPES } from "@zeus/workspace";
 import { archiveMemoryAction, createMemoryAction } from "@/app/app/actions";
 import type { WorkspacePageData } from "@/lib/product";
+import { RunPanel } from "./workspace-run-panel";
 import { EmptyState, eventDetail, SectionHeader, timeLabel } from "./workspace-ui";
 
 export function MemoryView({ data, canWrite }: { data: WorkspacePageData; canWrite: boolean }) {
@@ -136,6 +137,8 @@ function MemoryCard({
 }
 
 export function ActivityView({ data }: { data: WorkspacePageData }) {
+  const workspace = data.activeWorkspace;
+  const latestRun = data.runs[0];
   return (
     <div className="mx-auto max-w-4xl">
       <SectionHeader
@@ -143,7 +146,15 @@ export function ActivityView({ data }: { data: WorkspacePageData }) {
         title="What actually happened"
         detail="This timeline is built from persisted operational events. Security audit evidence stays a separate authority."
       />
-      <div className="relative space-y-0 border-l border-[var(--line)] pl-6">
+      {workspace && latestRun ? (
+        <RunPanel
+          workspaceId={workspace.id}
+          runId={latestRun.id}
+          view="activity"
+          title="Latest run"
+        />
+      ) : null}
+      <div className="relative mt-7 space-y-0 border-l border-[var(--line)] pl-6">
         {data.activity.map((event) => {
           const detail = eventDetail(event.safePayload);
           return (

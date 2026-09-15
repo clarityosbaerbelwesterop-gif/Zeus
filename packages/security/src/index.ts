@@ -41,8 +41,20 @@ export function assertTrustedOrigin(requestOrigin: string | null, publicOrigin: 
 }
 
 export function safeAuditMetadata(
-  input: Record<string, string | number | boolean | null>,
+  input: Readonly<Record<string, unknown>>,
 ): Record<string, string | number | boolean | null> {
   const forbidden = /(secret|password|token|authorization|cookie|key)/iu;
-  return Object.fromEntries(Object.entries(input).filter(([key]) => !forbidden.test(key)));
+  const safeEntries: [string, string | number | boolean | null][] = [];
+  for (const [key, value] of Object.entries(input)) {
+    if (forbidden.test(key)) continue;
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean" ||
+      value === null
+    ) {
+      safeEntries.push([key, typeof value === "string" ? value.slice(0, 4_096) : value]);
+    }
+  }
+  return Object.fromEntries(safeEntries);
 }

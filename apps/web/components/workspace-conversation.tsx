@@ -3,6 +3,7 @@ import { can } from "@zeus/workspace";
 import Link from "next/link";
 import { sendMessageAction } from "@/app/app/actions";
 import type { WorkspacePageData } from "@/lib/product";
+import { RunPanel } from "./workspace-run-panel";
 import { EmptyState, workspaceHref } from "./workspace-ui";
 import { participantNames } from "./workspace-team";
 
@@ -12,6 +13,7 @@ export function ConversationView({ data }: { data: WorkspacePageData }) {
   if (!workspace || !conversation) return null;
   const participants = participantNames(data, conversation.id);
   const writable = Boolean(data.membershipRole && can(data.membershipRole, "conversation.write"));
+  const latestRun = data.runs.find((run) => run.conversationId === conversation.id);
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-[850px] flex-col">
@@ -65,6 +67,15 @@ export function ConversationView({ data }: { data: WorkspacePageData }) {
           />
         )}
       </div>
+
+      {latestRun ? (
+        <RunPanel
+          workspaceId={workspace.id}
+          runId={latestRun.id}
+          conversationId={conversation.id}
+          title="Latest agent run"
+        />
+      ) : null}
 
       {writable ? (
         <form
