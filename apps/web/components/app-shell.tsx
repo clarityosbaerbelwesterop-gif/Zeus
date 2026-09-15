@@ -1,243 +1,301 @@
-import { AGENT_TEMPLATES, type AgentCode } from "@zeus/agents";
+import { type AgentCode } from "@zeus/agents";
+import { can } from "@zeus/workspace";
 import Link from "next/link";
+import type { WorkspacePageData } from "@/lib/product";
 import { AgentMark } from "./agent-mark";
-import {
-  createConversationAction,
-  createWorkspaceAction,
-  sendMessageAction,
-  toggleAgentAction,
-} from "@/app/app/actions";
-import type { AwaitedReturn } from "@/lib/types";
-import type { workspacePageData } from "@/lib/product";
+import { CommandPalette } from "./command-palette";
+import { ConversationView } from "./workspace-conversation";
+import { WorkspaceCreateForm } from "./workspace-create-form";
+import { ArtifactsView, FilesView } from "./workspace-files-artifacts";
+import { WorkspaceHome } from "./workspace-home";
+import { ActivityView, MemoryView } from "./workspace-memory-activity";
+import { PlansView } from "./workspace-plans";
+import { SearchView } from "./workspace-search";
+import { SettingsView } from "./workspace-settings";
+import { participantNames, TeamView } from "./workspace-team";
+import { TasksView } from "./workspace-tasks";
+import { timeLabel, workspaceHref } from "./workspace-ui";
 
-type Data = AwaitedReturn<typeof workspacePageData>;
+const viewLabels: Record<string, string> = {
+  home: "Workspace",
+  team: "Team",
+  tasks: "Tasks",
+  plans: "Plans",
+  files: "Files",
+  artifacts: "Artifacts",
+  memory: "Memory",
+  activity: "Activity",
+  search: "Search",
+  settings: "Settings",
+};
 
-export function AppShell({ data }: { data: Data }) {
+export function AppShell({ data }: { data: WorkspacePageData }) {
   if (!data.activeWorkspace) return <EmptyWorkspace />;
   const workspace = data.activeWorkspace;
-  const activeAgent = data.activeConversation?.agentCode
-    ? AGENT_TEMPLATES.find((a) => a.code === data.activeConversation?.agentCode)
-    : null;
+  const selectedView = data.activeConversation
+    ? "conversation"
+    : viewLabels[data.view]
+      ? data.view
+      : "home";
+  const directConversationByAgent = new Map(
+    data.conversations
+      .filter((conversation) => conversation.type === "direct_agent" && conversation.agentCode)
+      .map((conversation) => [conversation.agentCode as string, conversation]),
+  );
+  const teamConversation = data.conversations.find((conversation) => conversation.type === "team");
+  const paletteAgents = data.agents.map((agent) => {
+    const direct = directConversationByAgent.get(agent.code);
+    return {
+      code: agent.code,
+      name: agent.name,
+      enabled: agent.enabled,
+      ...(direct ? { conversationId: direct.id } : {}),
+    };
+  });
+  const role = data.membershipRole;
+  const canWrite = Boolean(role && can(role, "task.write"));
+  const canManage = Boolean(role && can(role, "workspace.manage"));
+
   return (
-    <main className="workspace-grid grid min-h-screen grid-cols-[250px_minmax(0,1fr)_310px] bg-[var(--paper)]">
+    <main className="workspace-grid grid min-h-screen grid-cols-[252px_minmax(0,1fr)_300px] bg-[var(--paper)]">
       <aside className="workspace-sidebar border-r border-[var(--line)] p-4 md:p-5">
-        <div className="mb-6 flex items-center justify-between">
-          <Link href="/" className="text-sm font-semibold">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <Link href="/" className="text-sm font-semibold tracking-[0.08em]">
             ZEUS
           </Link>
-          <span className="sidebar-label text-xs text-[var(--muted)]">
-            {data.account.user.name ?? "Account"}
-          </span>
+          <CommandPalette workspaceId={workspace.id} agents={paletteAgents} />
         </div>
-        <div className="sidebar-label mb-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-          Workspaces
-        </div>
-        <div className="space-y-1">
-          {data.workspaces.map((item) => (
+
+        <details className="workspace-switcher group mb-5">
+          <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl bg-white/55 px-3 py-2.5 text-sm font-medium">
+            <span className="truncate">{workspace.name}</span>
+            <span className="text-[var(--muted)]">⌄</span>
+          </summary>
+          <div className="mt-1 space-y-1 rounded-xl border border-[var(--line)] bg-[var(--paper)] p-1">
+            {data.workspaces.map((item) => (
+              <Link
+                key={item.id}
+                href={workspaceHref(item.id)}
+                className={`block rounded-lg px-3 py-2 text-sm ${
+                  item.id === workspace.id
+                    ? "bg-white font-medium"
+                    : "text-[var(--muted)] hover:bg-white/60"
+                }`}
+              >
+                {item.name}
+              </Link>
+            ))}
             <Link
-              key={item.id}
-              href={`/app?workspace=${item.id}`}
-              className={`block rounded-xl px-3 py-2.5 text-sm ${item.id === workspace.id ? "bg-white/75 font-medium" : "text-[var(--muted)] hover:bg-white/45"}`}
+              href="/app/new"
+              className="block rounded-lg px-3 py-2 text-sm text-[var(--muted)] hover:bg-white/60"
             >
-              <span className="sidebar-label">{item.name}</span>
-              <span className="hidden max-[900px]:inline">
-                {item.name.slice(0, 2).toUpperCase()}
-              </span>
+              + New workspace
             </Link>
-          ))}
-        </div>
+          </div>
+        </details>
+
+        <form
+          method="get"
+          action="/app"
+          className="sidebar-search mb-5 flex rounded-xl border border-[var(--line)] bg-white/40 px-3 py-2"
+        >
+          <input type="hidden" name="workspace" value={workspace.id} />
+          <input type="hidden" name="view" value="search" />
+          <input
+            name="q"
+            defaultValue={data.searchQuery}
+            placeholder="Search workspace"
+            className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+          />
+        </form>
+
+        <nav className="sidebar-nav space-y-1">
+          <SidebarLink
+            href={workspaceHref(workspace.id)}
+            active={selectedView === "home"}
+            label="Home"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "team")}
+            active={selectedView === "team"}
+            label="Team"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "tasks")}
+            active={selectedView === "tasks"}
+            label="Tasks"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "plans")}
+            active={selectedView === "plans"}
+            label="Plans"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "files")}
+            active={selectedView === "files"}
+            label="Files"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "artifacts")}
+            active={selectedView === "artifacts"}
+            label="Artifacts"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "memory")}
+            active={selectedView === "memory"}
+            label="Memory"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "activity")}
+            active={selectedView === "activity"}
+            label="Activity"
+          />
+        </nav>
+
         <div className="sidebar-label mt-7 mb-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-          Teammates
+          Team
         </div>
         <div className="space-y-1">
           {data.agents
-            .filter((a) => a.enabled)
-            .map((a) => (
-              <form key={a.code} action={createConversationAction}>
-                <input type="hidden" name="workspaceId" value={workspace.id} />
-                <input type="hidden" name="agent" value={a.code} />
-                <button className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left hover:bg-white/55">
+            .filter((agent) => agent.enabled)
+            .map((agent) => {
+              const direct = directConversationByAgent.get(agent.code);
+              return direct ? (
+                <Link
+                  key={agent.code}
+                  href={`/app?workspace=${workspace.id}&conversation=${direct.id}`}
+                  className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-white/55"
+                >
                   <AgentMark
-                    agent={{ code: a.code as AgentCode, name: a.name, accent: a.accent }}
-                    size={32}
+                    agent={{
+                      code: agent.code as AgentCode,
+                      name: agent.name,
+                      accent: agent.accent,
+                    }}
+                    size={30}
                   />
-                  <span className="sidebar-label">
-                    <span className="block text-sm font-medium">{a.name}</span>
-                    <span className="block max-w-36 truncate text-[11px] text-[var(--muted)]">
-                      {a.role}
+                  <span className="sidebar-label min-w-0">
+                    <span className="block text-sm font-medium">{agent.name}</span>
+                    <span className="block truncate text-[11px] capitalize text-[var(--muted)]">
+                      {agent.presence}
                     </span>
                   </span>
-                </button>
-              </form>
-            ))}
+                </Link>
+              ) : null;
+            })}
         </div>
-        <form action={createConversationAction} className="sidebar-label mt-3">
-          <input type="hidden" name="workspaceId" value={workspace.id} />
-          <button className="w-full rounded-xl border border-[var(--line)] px-3 py-2 text-left text-sm">
-            + Team conversation
-          </button>
-        </form>
-        <div className="sidebar-label mt-8 mb-2 text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-          Conversations
-        </div>
-        <div className="sidebar-label space-y-1">
-          {data.conversations.slice(0, 8).map((conversation) => (
-            <Link
-              key={conversation.id}
-              href={`/app?workspace=${workspace.id}&conversation=${conversation.id}`}
-              className={`block truncate rounded-xl px-3 py-2 text-sm ${conversation.id === data.activeConversation?.id ? "bg-white/70" : "text-[var(--muted)]"}`}
-            >
-              {conversation.title}
-            </Link>
-          ))}
-        </div>
+        {teamConversation ? (
+          <Link
+            href={`/app?workspace=${workspace.id}&conversation=${teamConversation.id}`}
+            className="sidebar-label mt-2 block rounded-xl border border-[var(--line)] px-3 py-2 text-sm"
+          >
+            Team chat
+          </Link>
+        ) : null}
+
+        <Link
+          href={workspaceHref(workspace.id, "settings")}
+          className="sidebar-label mt-8 block rounded-xl px-3 py-2 text-sm text-[var(--muted)] hover:bg-white/45"
+        >
+          Workspace settings
+        </Link>
       </aside>
 
       <section className="flex min-h-screen min-w-0 flex-col">
-        <header className="flex h-[70px] items-center justify-between border-b border-[var(--line)] px-5 md:px-7">
-          <div>
-            <p className="text-sm font-semibold">{workspace.name}</p>
-            <p className="text-xs text-[var(--muted)]">
-              {activeAgent
-                ? `${activeAgent.name} · ${activeAgent.role}`
-                : data.activeConversation
-                  ? "Team conversation"
-                  : "Choose a teammate"}
+        <header className="workspace-header flex min-h-[70px] items-center justify-between gap-4 border-b border-[var(--line)] px-5 py-3 md:px-7">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{workspace.name}</p>
+            <p className="truncate text-xs text-[var(--muted)]">
+              {data.activeConversation
+                ? `${data.activeConversation.title}${participantNames(data, data.activeConversation.id) ? ` · ${participantNames(data, data.activeConversation.id)}` : ""}`
+                : (viewLabels[selectedView] ?? "Workspace")}
             </p>
           </div>
-          <span className="rounded-full border border-[var(--line)] bg-white/50 px-3 py-1.5 text-xs text-[var(--muted)]">
-            M1 · provider {process.env.OPENROUTER_API_KEY ? "configured" : "not configured"}
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="hidden rounded-full border border-[var(--line)] bg-white/50 px-3 py-1.5 text-xs text-[var(--muted)] sm:inline">
+              {role?.toUpperCase()}
+            </span>
+            <span className="rounded-full border border-[var(--line)] bg-white/50 px-3 py-1.5 text-xs text-[var(--muted)]">
+              AI {process.env.OPENROUTER_API_KEY ? "ready" : "not configured"}
+            </span>
+          </div>
         </header>
-        <div className="mx-auto flex w-full max-w-[820px] flex-1 flex-col px-5 py-8 md:px-8">
+
+        <div className="min-w-0 flex-1 px-4 py-6 sm:px-6 md:px-8">
           {data.activeConversation ? (
-            <>
-              <div className="flex-1 space-y-6">
-                {data.messages.length ? (
-                  data.messages.map((message) => (
-                    <article
-                      key={message.id}
-                      className={
-                        message.role === "user"
-                          ? "ml-auto max-w-[78%] rounded-[20px] bg-[#e8e3d9] px-4 py-3 text-sm leading-6"
-                          : "max-w-[82%] text-sm leading-7 text-[var(--muted)]"
-                      }
-                    >
-                      {message.role === "system" ? (
-                        <span className="mb-1 block text-[11px] uppercase tracking-widest">
-                          System state
-                        </span>
-                      ) : null}
-                      {message.content}
-                    </article>
-                  ))
-                ) : (
-                  <div className="pt-20 text-center">
-                    <div className="mx-auto mb-5 w-fit">
-                      {activeAgent ? <AgentMark agent={activeAgent} size={54} /> : null}
-                    </div>
-                    <h1 className="text-4xl font-semibold tracking-[-0.04em]">
-                      {activeAgent ? `Work with ${activeAgent.name}` : "Give the team a goal"}
-                    </h1>
-                    <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[var(--muted)]">
-                      Messages and run state persist. Until a model provider is connected, Zeus will
-                      wait rather than invent work.
-                    </p>
-                  </div>
-                )}
-              </div>
-              <form
-                action={sendMessageAction}
-                className="sticky bottom-5 mt-8 rounded-[22px] border border-[var(--line)] bg-white/90 p-3 shadow-[0_16px_50px_rgba(50,45,35,.08)]"
-              >
-                <input type="hidden" name="conversationId" value={data.activeConversation.id} />
-                <input type="hidden" name="workspaceId" value={workspace.id} />
-                <textarea
-                  required
-                  maxLength={20000}
-                  name="message"
-                  rows={2}
-                  placeholder="Give Zeus real work…"
-                  className="w-full resize-none bg-transparent px-2 py-2 text-sm outline-none"
-                />
-                <div className="flex items-center justify-between px-2">
-                  <span className="text-[11px] text-[var(--muted)]">
-                    Operational activity is visible. Private reasoning is not.
-                  </span>
-                  <button className="grid size-9 place-items-center rounded-full bg-[var(--ink)] text-white">
-                    ↑
-                  </button>
-                </div>
-              </form>
-            </>
+            <ConversationView data={data} />
+          ) : selectedView === "team" ? (
+            <TeamView
+              data={data}
+              directConversationByAgent={directConversationByAgent}
+              canManage={canManage}
+            />
+          ) : selectedView === "tasks" ? (
+            <TasksView data={data} canWrite={canWrite} />
+          ) : selectedView === "plans" ? (
+            <PlansView data={data} canWrite={canWrite} />
+          ) : selectedView === "files" ? (
+            <FilesView data={data} canWrite={canWrite} />
+          ) : selectedView === "artifacts" ? (
+            <ArtifactsView data={data} canWrite={canWrite} />
+          ) : selectedView === "memory" ? (
+            <MemoryView data={data} canWrite={canWrite} />
+          ) : selectedView === "activity" ? (
+            <ActivityView data={data} />
+          ) : selectedView === "settings" ? (
+            <SettingsView data={data} canManage={canManage} />
+          ) : selectedView === "search" ? (
+            <SearchView data={data} />
           ) : (
-            <div className="grid flex-1 place-items-center">
-              <div className="max-w-md text-center">
-                <h1 className="text-4xl font-semibold tracking-[-0.04em]">
-                  Start with a teammate.
-                </h1>
-                <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-                  Choose Kai, Jorge, Lora, Simon, Sara or create a team conversation from the
-                  sidebar.
-                </p>
-              </div>
-            </div>
+            <WorkspaceHome data={data} />
           )}
         </div>
       </section>
 
-      <aside className="activity-rail border-l border-[var(--line)] p-6">
+      <aside className="activity-rail border-l border-[var(--line)] p-5 xl:p-6">
         <div className="flex items-center justify-between">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">Activity</p>
-          <span className="size-2 rounded-full bg-[#9f9b91]" />
+          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">Now</p>
+          <span className="size-2 rounded-full bg-[#8f8b82]" />
         </div>
-        {data.runs.length ? (
-          <div className="mt-7">
-            <p className="text-sm font-medium">{data.runs[0]?.objective}</p>
-            <p className="mt-1 text-xs uppercase tracking-wider text-[var(--muted)]">
-              {data.runs[0]?.status}
-            </p>
-            <div className="mt-6 space-y-5 border-l border-[var(--line)] pl-5">
-              {data.steps.map((step) => (
-                <div key={step.id}>
-                  <p className="text-sm">{step.title}</p>
-                  {step.safeDetail ? (
-                    <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{step.safeDetail}</p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <p className="mt-7 text-sm leading-6 text-[var(--muted)]">
-            Run steps, tool use, artifacts and verification will appear here as work happens.
-          </p>
-        )}
-        <div className="mt-10 border-t border-[var(--line)] pt-5">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-            Enabled team
-          </p>
-          <div className="mt-4 space-y-2">
-            {data.agents.map((agent) => (
-              <form
-                action={toggleAgentAction}
-                key={agent.code}
-                className="flex items-center justify-between"
-              >
-                <input type="hidden" name="workspaceId" value={workspace.id} />
-                <input type="hidden" name="agent" value={agent.code} />
-                <input type="hidden" name="enabled" value={String(!agent.enabled)} />
-                <span className="text-sm">{agent.name}</span>
-                <button
-                  aria-label={`${agent.enabled ? "Disable" : "Enable"} ${agent.name}`}
-                  className={`h-5 w-9 rounded-full p-0.5 ${agent.enabled ? "bg-[var(--ink)]" : "bg-[#d5d0c6]"}`}
-                >
-                  <span
-                    className={`block size-4 rounded-full bg-white transition ${agent.enabled ? "translate-x-4" : "translate-x-0"}`}
+        <p className="mt-5 text-sm font-medium">
+          {workspace.currentFocus || workspace.objective || "No current focus set."}
+        </p>
+        <div className="mt-8 space-y-4">
+          {data.agents
+            .filter((agent) => agent.enabled)
+            .map((agent) => (
+              <div key={agent.code} className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <AgentMark
+                    agent={{
+                      code: agent.code as AgentCode,
+                      name: agent.name,
+                      accent: agent.accent,
+                    }}
+                    size={28}
                   />
-                </button>
-              </form>
+                  <span className="truncate text-sm">{agent.name}</span>
+                </div>
+                <span className="text-xs capitalize text-[var(--muted)]">{agent.presence}</span>
+              </div>
             ))}
+        </div>
+        <div className="mt-8 border-t border-[var(--line)] pt-5">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+            Recent activity
+          </p>
+          <div className="mt-4 space-y-4">
+            {data.activity.slice(0, 5).map((event) => (
+              <div key={event.id}>
+                <p className="text-xs font-medium">{event.eventType.replaceAll(".", " ")}</p>
+                <p className="mt-1 text-[11px] text-[var(--muted)]">{timeLabel(event.createdAt)}</p>
+              </div>
+            ))}
+            {!data.activity.length ? (
+              <p className="text-xs leading-5 text-[var(--muted)]">
+                Real workspace events will appear here.
+              </p>
+            ) : null}
           </div>
         </div>
       </aside>
@@ -245,58 +303,36 @@ export function AppShell({ data }: { data: Data }) {
   );
 }
 
+function SidebarLink({ href, active, label }: { href: string; active: boolean; label: string }) {
+  return (
+    <Link
+      href={href}
+      className={`block rounded-xl px-3 py-2.5 text-sm ${
+        active ? "bg-white/75 font-medium" : "text-[var(--muted)] hover:bg-white/45"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
 function EmptyWorkspace() {
   return (
-    <main className="grid min-h-screen place-items-center px-5">
-      <div className="w-full max-w-xl">
+    <main className="grid min-h-screen place-items-center px-5 py-10">
+      <div className="w-full max-w-2xl">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
           ZEUS · first workspace
         </p>
-        <h1 className="mt-4 text-5xl font-semibold tracking-[-0.05em]">
-          Who should work with you?
+        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">
+          Give your team a place to remember.
         </h1>
-        <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-          Create a workspace and enable only the teammates it needs. Nothing is duplicated; Zeus
-          references the canonical system agents.
+        <p className="mt-4 max-w-xl text-sm leading-6 text-[var(--muted)]">
+          A workspace owns the objective, team, conversations, tasks, files, artifacts, memory and
+          activity. It persists when the chat closes.
         </p>
-        <form action={createWorkspaceAction} className="mt-10 space-y-5">
-          <input
-            name="name"
-            required
-            maxLength={120}
-            placeholder="Launch Zeus"
-            className="w-full rounded-2xl border border-[var(--line)] bg-white/60 px-4 py-3"
-          />
-          <textarea
-            name="description"
-            maxLength={2000}
-            placeholder="What is this workspace responsible for?"
-            className="w-full rounded-2xl border border-[var(--line)] bg-white/60 px-4 py-3"
-          />
-          <div className="grid gap-2 sm:grid-cols-2">
-            {AGENT_TEMPLATES.map((agent) => (
-              <label
-                key={agent.code}
-                className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[var(--line)] bg-white/40 p-3"
-              >
-                <input
-                  type="checkbox"
-                  name="agents"
-                  value={agent.code}
-                  defaultChecked={agent.code !== "sara"}
-                />
-                <AgentMark agent={agent} size={34} />
-                <span>
-                  <span className="block text-sm font-medium">{agent.name}</span>
-                  <span className="text-xs text-[var(--muted)]">{agent.role}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-          <button className="rounded-full bg-[var(--ink)] px-6 py-3 text-sm font-semibold text-white">
-            Create workspace
-          </button>
-        </form>
+        <div className="mt-9">
+          <WorkspaceCreateForm />
+        </div>
       </div>
     </main>
   );
