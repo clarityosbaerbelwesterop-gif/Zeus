@@ -554,7 +554,8 @@ export async function createTask(input: {
   const account = await bootstrapAccount();
   const title = shortTitleSchema.parse(input.title);
   const description = longTextSchema.parse(input.description ?? "");
-  const priority: TaskPriority = isTaskPriority(input.priority ?? "") ? input.priority : "medium";
+  const requestedPriority = input.priority ?? "medium";
+  const priority: TaskPriority = isTaskPriority(requestedPriority) ? requestedPriority : "medium";
   const taskId = randomUUID();
   await withActor(account.user.id, async (db) => {
     await requireCapability(db, account.user.id, input.workspaceId, "task.write");
@@ -593,24 +594,26 @@ export async function updateTask(input: {
   const account = await bootstrapAccount();
   const title = shortTitleSchema.parse(input.title);
   const description = longTextSchema.parse(input.description);
-  if (!isTaskStatus(input.status)) throw new Error("Unknown task status.");
-  if (!isTaskPriority(input.priority)) throw new Error("Unknown task priority.");
+  const status = input.status;
+  const priority = input.priority;
+  if (!isTaskStatus(status)) throw new Error("Unknown task status.");
+  if (!isTaskPriority(priority)) throw new Error("Unknown task priority.");
   await withActor(account.user.id, async (db) => {
     await requireCapability(db, account.user.id, input.workspaceId, "task.write");
     const current = (await db.select().from(tasks).where(eq(tasks.id, input.taskId)).limit(1))[0];
     if (!current || current.workspaceId !== input.workspaceId) throw new Error("Task not found.");
     if (!isTaskStatus(current.status)) throw new Error("Task has an invalid persisted status.");
-    assertTaskTransition(current.status, input.status);
+    assertTaskTransition(current.status, status);
     if (input.assignedAgent) await enabledAgent(db, input.workspaceId, input.assignedAgent);
     await db
       .update(tasks)
       .set({
         title,
         description,
-        status: input.status,
-        priority: input.priority,
+        status,
+        priority,
         assignedAgent: input.assignedAgent ?? null,
-        completedAt: input.status === "completed" ? new Date() : null,
+        completedAt: status === "completed" ? new Date() : null,
         updatedAt: new Date(),
       })
       .where(eq(tasks.id, input.taskId));
@@ -619,7 +622,7 @@ export async function updateTask(input: {
       eventType: "task.updated",
       entityType: "task",
       entityId: input.taskId,
-      payload: { status: input.status, assignedAgent: input.assignedAgent ?? null },
+      payload: { status, assignedAgent: input.assignedAgent ?? null },
     });
   });
 }

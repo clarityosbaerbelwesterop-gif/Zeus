@@ -54,7 +54,9 @@ describe("PRODUCT M2 database contract", () => {
     expect(sql).toContain("tasks_search_idx");
     expect(sql).toContain("memory_search_idx");
     expect(sql).toContain("USING gin(to_tsvector");
-    expect(sql).not.toMatch(/vector|embedding|pgvector/iu);
+    expect(sql).not.toMatch(
+      /pgvector|embedding|create\s+extension\s+(?:if\s+not\s+exists\s+)?vector/iu,
+    );
   });
 
   it("keeps file objects bounded, isolated and non-executable by schema design", async () => {
