@@ -39,11 +39,13 @@ export function validateTeamTaskGraph(
 ): void {
   if (!tasks.length) throw new Error("TeamRun requires at least one task.");
   if (tasks.length > limits.maxTasks) throw new Error("TeamRun task limit exceeded.");
-  if (limits.maxParallel < 1 || limits.maxParallel > 5) throw new Error("Invalid TeamRun concurrency.");
+  if (limits.maxParallel < 1 || limits.maxParallel > 5)
+    throw new Error("Invalid TeamRun concurrency.");
   const byId = new Map<string, TeamTask>();
   for (const task of tasks) {
     if (!task.id || byId.has(task.id)) throw new Error("TeamRun contains duplicate task IDs.");
-    if ((task.reworkCount ?? 0) > limits.maxRework) throw new Error("TeamRun rework limit exceeded.");
+    if ((task.reworkCount ?? 0) > limits.maxRework)
+      throw new Error("TeamRun rework limit exceeded.");
     byId.set(task.id, task);
   }
   for (const task of tasks) {

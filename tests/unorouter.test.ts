@@ -39,10 +39,10 @@ describe("UnoRouter provider", () => {
           headers: { "Content-Type": "application/json", "Retry-After": "0" },
         });
       }
-      return new Response(
-        JSON.stringify({ choices: [{ message: { content: "fallback" } }] }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ choices: [{ message: { content: "fallback" } }] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     });
     const provider = createUnoRouterProvider({
       primaryApiKey: "primary-secret",
@@ -86,21 +86,33 @@ describe("UnoRouter provider", () => {
       model: "missing-model",
       fetchImpl: modelFetch as typeof fetch,
     });
-    await expect(modelProvider.generate(input, new AbortController().signal)).rejects.toMatchObject({
-      code: "MODEL_ERROR",
-      retryable: false,
-    });
+    await expect(modelProvider.generate(input, new AbortController().signal)).rejects.toMatchObject(
+      {
+        code: "MODEL_ERROR",
+        retryable: false,
+      },
+    );
     expect(modelFetch).toHaveBeenCalledTimes(1);
   });
 
   it("does not claim unverified per-model tool capability", async () => {
-    const provider = createUnoRouterProvider({ primaryApiKey: "primary-secret", model: "test-model" });
+    const provider = createUnoRouterProvider({
+      primaryApiKey: "primary-secret",
+      model: "test-model",
+    });
     expect(provider.capabilities.has("tools")).toBe(false);
     await expect(
       provider.generate(
         {
           ...input,
-          tools: [{ id: "tasks.list", name: "List tasks", description: "List", inputSchema: { type: "object" } }],
+          tools: [
+            {
+              id: "tasks.list",
+              name: "List tasks",
+              description: "List",
+              inputSchema: { type: "object" },
+            },
+          ],
         },
         new AbortController().signal,
       ),

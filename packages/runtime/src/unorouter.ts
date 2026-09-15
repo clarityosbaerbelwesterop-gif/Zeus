@@ -97,7 +97,10 @@ function parseToolCalls(
     const id = typeof call.id === "string" && call.id ? call.id : `tool-${index}`;
     const functionName = call.function?.name;
     if (typeof functionName !== "string") {
-      throw new RuntimeError("MODEL_ERROR", "UnoRouter returned a tool call without a function name.");
+      throw new RuntimeError(
+        "MODEL_ERROR",
+        "UnoRouter returned a tool call without a function name.",
+      );
     }
     const toolId = mapping.get(functionName);
     if (!toolId) throw new RuntimeError("TOOL_NOT_FOUND", "UnoRouter requested an unknown tool.");
@@ -108,7 +111,10 @@ function parseToolCalls(
     try {
       return { id, toolId, input: JSON.parse(rawArguments) as unknown };
     } catch {
-      throw new RuntimeError("TOOL_INPUT_INVALID", `Tool ${toolId} returned malformed JSON arguments.`);
+      throw new RuntimeError(
+        "TOOL_INPUT_INVALID",
+        `Tool ${toolId} returned malformed JSON arguments.`,
+      );
     }
   });
 }
@@ -148,7 +154,11 @@ function requestBody(input: ModelInput, model: string): Record<string, unknown> 
       ? {
           response_format: {
             type: "json_schema",
-            json_schema: { name: "zeus_output", strict: true, schema: input.structuredOutputSchema },
+            json_schema: {
+              name: "zeus_output",
+              strict: true,
+              schema: input.structuredOutputSchema,
+            },
           },
         }
       : {}),
@@ -177,10 +187,16 @@ async function errorCodeOf(response: Response): Promise<string | undefined> {
 
 function providerError(status: number, code?: string): RuntimeError {
   if (status === 401 || status === 403) {
-    return new RuntimeError("PROVIDER_AUTH_FAILED", "UnoRouter authentication or authorization failed.");
+    return new RuntimeError(
+      "PROVIDER_AUTH_FAILED",
+      "UnoRouter authentication or authorization failed.",
+    );
   }
   if (status === 402) {
-    return new RuntimeError("PROVIDER_AUTH_FAILED", "UnoRouter credential spending limit was reached.");
+    return new RuntimeError(
+      "PROVIDER_AUTH_FAILED",
+      "UnoRouter credential spending limit was reached.",
+    );
   }
   if (status === 429) {
     return new RuntimeError("PROVIDER_RATE_LIMITED", "UnoRouter rate limit reached.", true);
@@ -280,7 +296,10 @@ export function createUnoRouterProvider(options: UnoRouterProviderOptions): Mode
             Authorization: `Bearer ${credential.key}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ ...requestBody(input, model), ...(stream ? { stream: true } : {}) }),
+          body: JSON.stringify({
+            ...requestBody(input, model),
+            ...(stream ? { stream: true } : {}),
+          }),
           signal,
         });
       } catch (error) {

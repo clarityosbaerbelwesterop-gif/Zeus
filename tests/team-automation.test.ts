@@ -42,9 +42,9 @@ describe("M6 TeamRun and M8 automation policy", () => {
         { id: "a", agent: "simon", dependsOn: [] },
       ]),
     ).toThrow(/duplicate/iu);
-    expect(() => validateTeamTaskGraph([{ id: "a", agent: "kai", dependsOn: [], reworkCount: 3 }])).toThrow(
-      /rework/iu,
-    );
+    expect(() =>
+      validateTeamTaskGraph([{ id: "a", agent: "kai", dependsOn: [], reworkCount: 3 }]),
+    ).toThrow(/rework/iu);
   });
 
   it("creates explicit safe handoffs without policy escalation", () => {
@@ -64,7 +64,9 @@ describe("M6 TeamRun and M8 automation policy", () => {
     expect(nextAutomationRun({ type: "recurring", intervalMinutes: 60 }, now)?.toISOString()).toBe(
       "2026-09-15T13:00:00.000Z",
     );
-    expect(() => nextAutomationRun({ type: "condition_watch", intervalMinutes: 15 }, now)).toThrow();
+    expect(() =>
+      nextAutomationRun({ type: "condition_watch", intervalMinutes: 15 }, now),
+    ).toThrow();
     expect(automationMayPerformSideEffect(2)).toBe(true);
     expect(automationMayPerformSideEffect(3)).toBe(false);
     expect(automationMayPerformSideEffect(4)).toBe(false);
