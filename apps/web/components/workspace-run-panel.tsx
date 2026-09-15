@@ -84,7 +84,7 @@ export async function RunPanel({
       </div>
 
       <div className="grid gap-0 md:grid-cols-[1.25fr_.75fr]">
-        <div className="border-b border-[var(--line)] p-4 md:border-b-0 md:border-r sm:p-5">
+        <div className="border-b border-[var(--line)] p-4 sm:p-5 md:border-b-0 md:border-r">
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em]">Execution</h3>
           <div className="space-y-3">
             {steps.map((step) => (
@@ -110,7 +110,9 @@ export async function RunPanel({
               </div>
             ))}
             {!steps.length ? (
-              <p className="text-sm text-[var(--muted)]">No execution steps have been recorded yet.</p>
+              <p className="text-sm text-[var(--muted)]">
+                No execution steps have been recorded yet.
+              </p>
             ) : null}
           </div>
         </div>
@@ -136,7 +138,7 @@ export async function RunPanel({
               <div key={check.id} className="rounded-xl border border-[var(--line)] bg-white/50 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <dt className="font-medium">{check.checkName.replaceAll("_", " ")}</dt>
-                  <dd className="uppercase tracking-wider text-[10px] text-[var(--muted)]">
+                  <dd className="text-[10px] uppercase tracking-wider text-[var(--muted)]">
                     {check.status}
                   </dd>
                 </div>
