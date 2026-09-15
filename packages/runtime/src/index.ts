@@ -89,10 +89,7 @@ const stepTransitions: Readonly<Record<RunStepStatus, readonly RunStepStatus[]>>
 
 export function assertRunTransition(from: RunStatus, to: RunStatus): void {
   if (!runTransitions[from].includes(to)) {
-    throw new RuntimeError(
-      "INTERNAL_RUNTIME_ERROR",
-      `Invalid run transition: ${from} -> ${to}`,
-    );
+    throw new RuntimeError("INTERNAL_RUNTIME_ERROR", `Invalid run transition: ${from} -> ${to}`);
   }
 }
 
@@ -200,17 +197,10 @@ export class ToolRegistry {
     return [...this.#tools.values()].filter((tool) => tool.allowedAgents.includes(agent));
   }
 
-  authorize(
-    toolId: string,
-    agent: AgentCode,
-    maximumSideEffect: ToolSideEffect,
-  ): ToolDefinition {
+  authorize(toolId: string, agent: AgentCode, maximumSideEffect: ToolSideEffect): ToolDefinition {
     const tool = this.get(toolId);
     if (!tool.allowedAgents.includes(agent) || tool.sideEffect > maximumSideEffect) {
-      throw new RuntimeError(
-        "TOOL_PERMISSION_DENIED",
-        `Tool is not permitted for ${agent}.`,
-      );
+      throw new RuntimeError("TOOL_PERMISSION_DENIED", `Tool is not permitted for ${agent}.`);
     }
     return tool;
   }
@@ -230,12 +220,7 @@ export interface RunRecorder {
     retryOfRunId?: string;
     parentRunId?: string;
   }): Promise<{ id: string }>;
-  transition(
-    runId: string,
-    from: RunStatus,
-    to: RunStatus,
-    safeReason?: string,
-  ): Promise<void>;
+  transition(runId: string, from: RunStatus, to: RunStatus, safeReason?: string): Promise<void>;
   step(
     runId: string,
     input: { status: RunStepStatus; title: string; tool?: string; safeDetail?: string },
@@ -268,11 +253,7 @@ export const unconfiguredProvider: ModelProvider = {
   },
 };
 
-export function shouldRetry(
-  error: RuntimeError,
-  attempt: number,
-  maximumAttempts = 3,
-): boolean {
+export function shouldRetry(error: RuntimeError, attempt: number, maximumAttempts = 3): boolean {
   return error.retryable && attempt < maximumAttempts;
 }
 
