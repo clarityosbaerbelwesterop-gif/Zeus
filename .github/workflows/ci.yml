@@ -43,6 +43,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --prod --audit-level=high
       - run: pnpm format
+      - name: Print formatting diff
+        if: failure()
+        run: |
+          pnpm exec prettier --write apps/web/components/workspace-run-panel.tsx apps/web/lib/agent-runtime.ts
+          git diff -- apps/web/components/workspace-run-panel.tsx apps/web/lib/agent-runtime.ts
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
