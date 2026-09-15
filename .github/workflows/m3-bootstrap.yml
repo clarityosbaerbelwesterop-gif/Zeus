@@ -39,11 +39,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Show exact Prettier repair
-        run: |
-          pnpm exec prettier --write docs/M3_EXECUTION_MATRIX.md packages/runtime/src/index.ts packages/shared/src/index.ts
-          git diff -- docs/M3_EXECUTION_MATRIX.md packages/runtime/src/index.ts packages/shared/src/index.ts
-          git checkout -- docs/M3_EXECUTION_MATRIX.md packages/runtime/src/index.ts packages/shared/src/index.ts
       - run: pnpm format
       - run: pnpm lint
       - run: pnpm typecheck
