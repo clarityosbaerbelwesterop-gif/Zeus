@@ -8,7 +8,6 @@
     "./context": "./src/context.ts",
     "./engine": "./src/engine.ts",
     "./openrouter": "./src/openrouter.ts",
-    "./coding": "./src/coding.ts",
     "./m4": "./src/m4-boundaries.ts"
   },
   "scripts": {
