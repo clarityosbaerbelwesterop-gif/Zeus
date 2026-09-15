@@ -69,6 +69,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm e2e --project=desktop --grep "landing"
       - run: pnpm e2e --project=ipad --grep "landing"
