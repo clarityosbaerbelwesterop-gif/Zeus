@@ -84,7 +84,10 @@ function mappedMessages(input: ModelInput): unknown[] {
   return messages;
 }
 
-function parseToolCalls(input: ModelInput, calls: readonly OpenRouterToolCall[] | undefined): ModelToolCall[] {
+function parseToolCalls(
+  input: ModelInput,
+  calls: readonly OpenRouterToolCall[] | undefined,
+): ModelToolCall[] {
   if (!calls?.length) return [];
   const mapping = new Map(
     (input.tools ?? []).map((tool) => [toolFunctionName(tool.id), tool.id] as const),
@@ -105,7 +108,10 @@ function parseToolCalls(input: ModelInput, calls: readonly OpenRouterToolCall[] 
     try {
       parsed = JSON.parse(rawArguments);
     } catch {
-      throw new RuntimeError("TOOL_INPUT_INVALID", `Tool ${toolId} returned malformed JSON arguments.`);
+      throw new RuntimeError(
+        "TOOL_INPUT_INVALID",
+        `Tool ${toolId} returned malformed JSON arguments.`,
+      );
     }
     return { id, toolId, input: parsed };
   });
@@ -213,7 +219,8 @@ export function createOpenRouterProvider(options: OpenRouterProviderOptions): Mo
       }
       const parsed = raw as OpenRouterResponse;
       const choice = parsed.choices?.[0]?.message;
-      if (!choice) throw new RuntimeError("MODEL_ERROR", "AI provider returned no response choice.");
+      if (!choice)
+        throw new RuntimeError("MODEL_ERROR", "AI provider returned no response choice.");
       const text = typeof choice.content === "string" ? choice.content : "";
       const toolCalls = parseToolCalls(input, choice.tool_calls);
       const responseModel = typeof parsed.model === "string" && parsed.model ? parsed.model : model;
@@ -244,7 +251,8 @@ export function createOpenRouterProvider(options: OpenRouterProviderOptions): Mo
         signal,
       });
       if (!response.ok) throw providerError(response.status);
-      if (!response.body) throw new RuntimeError("MODEL_ERROR", "AI provider stream is unavailable.");
+      if (!response.body)
+        throw new RuntimeError("MODEL_ERROR", "AI provider stream is unavailable.");
       const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
       let buffer = "";
       while (true) {
@@ -266,7 +274,10 @@ export function createOpenRouterProvider(options: OpenRouterProviderOptions): Mo
               const delta = chunk.choices?.[0]?.delta?.content;
               if (typeof delta === "string" && delta) yield { textDelta: delta };
             } catch {
-              throw new RuntimeError("MODEL_ERROR", "AI provider returned an invalid stream chunk.");
+              throw new RuntimeError(
+                "MODEL_ERROR",
+                "AI provider returned an invalid stream chunk.",
+              );
             }
           }
           boundary = buffer.indexOf("\n\n");
