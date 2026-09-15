@@ -50,7 +50,10 @@ export interface SandboxProvider {
     readonly source: RepositoryAttachment;
     readonly credentials?: RepositoryCredentials;
   }): Promise<ExecutionEnvironment>;
-  execute(environment: ExecutionEnvironment, command: SandboxCommand): Promise<SandboxCommandResult>;
+  execute(
+    environment: ExecutionEnvironment,
+    command: SandboxCommand,
+  ): Promise<SandboxCommandResult>;
   readFile(environment: ExecutionEnvironment, path: string): Promise<string>;
   writeFile(environment: ExecutionEnvironment, path: string, content: string): Promise<void>;
   stop(environment: ExecutionEnvironment): Promise<void>;
@@ -135,7 +138,8 @@ export function validateRepositoryFullName(value: string): string {
 
 export function validateBaseSha(value: string): string {
   const trimmed = value.trim();
-  if (!SHA_PATTERN.test(trimmed)) throw new Error("Repository base SHA must be an exact 40-character commit SHA.");
+  if (!SHA_PATTERN.test(trimmed))
+    throw new Error("Repository base SHA must be an exact 40-character commit SHA.");
   return trimmed.toLowerCase();
 }
 
@@ -152,7 +156,12 @@ export function validateFeatureBranch(value: string): string {
 
 export function assertSafeRelativePath(value: string): string {
   const candidate = value.trim().replaceAll("\\", "/");
-  if (!candidate || candidate.includes("\0") || candidate.startsWith("/") || /^[A-Za-z]:\//.test(candidate)) {
+  if (
+    !candidate ||
+    candidate.includes("\0") ||
+    candidate.startsWith("/") ||
+    /^[A-Za-z]:\//.test(candidate)
+  ) {
     throw new Error("Repository path must be a non-empty relative path.");
   }
   const parts = candidate.split("/").filter((part) => part && part !== ".");
@@ -174,11 +183,20 @@ export function classifyCommand(command: string, args: readonly string[] = []): 
   ) {
     return "dangerous";
   }
-  if (NETWORK_COMMANDS.has(binary) || (binary === "git" && ["push", "fetch", "pull", "clone"].includes(args[0]?.toLowerCase() ?? ""))) {
+  if (
+    NETWORK_COMMANDS.has(binary) ||
+    (binary === "git" && ["push", "fetch", "pull", "clone"].includes(args[0]?.toLowerCase() ?? ""))
+  ) {
     return "network";
   }
   if (WRITE_COMMANDS.has(binary)) {
-    if (binary === "git" && ["status", "diff", "show", "log", "rev-parse", "ls-files", "grep"].includes(args[0]?.toLowerCase() ?? "")) return "read";
+    if (
+      binary === "git" &&
+      ["status", "diff", "show", "log", "rev-parse", "ls-files", "grep"].includes(
+        args[0]?.toLowerCase() ?? "",
+      )
+    )
+      return "read";
     return "write";
   }
   return "read";
@@ -191,7 +209,10 @@ export function commandAllowed(mode: KaiPermissionMode, risk: CommandRisk): bool
   return true;
 }
 
-export function truncateExecutionOutput(value: string, maximumBytes: number): { text: string; truncated: boolean } {
+export function truncateExecutionOutput(
+  value: string,
+  maximumBytes: number,
+): { text: string; truncated: boolean } {
   const bytes = new TextEncoder().encode(value);
   if (bytes.byteLength <= maximumBytes) return { text: value, truncated: false };
   const clipped = new TextDecoder().decode(bytes.slice(0, Math.max(0, maximumBytes - 32)));
@@ -251,7 +272,10 @@ export class VercelSandboxProvider implements SandboxProvider {
   readonly #maxOutputBytes: number;
 
   constructor(options: VercelSandboxProviderOptions = {}) {
-    this.#token = options.bearerToken ?? process.env.VERCEL_SANDBOX_BEARER_TOKEN ?? process.env.VERCEL_OIDC_TOKEN;
+    this.#token =
+      options.bearerToken ??
+      process.env.VERCEL_SANDBOX_BEARER_TOKEN ??
+      process.env.VERCEL_OIDC_TOKEN;
     this.#projectId = options.projectId ?? process.env.VERCEL_PROJECT_ID;
     this.#teamId = options.teamId ?? process.env.VERCEL_TEAM_ID;
     this.#apiBase = options.apiBaseUrl ?? "https://api.vercel.com";
@@ -296,7 +320,9 @@ export class VercelSandboxProvider implements SandboxProvider {
       }
     }
     if (!response.ok) {
-      throw new SandboxExecutionError(`Vercel Sandbox request failed with status ${response.status}.`);
+      throw new SandboxExecutionError(
+        `Vercel Sandbox request failed with status ${response.status}.`,
+      );
     }
     return payload;
   }
@@ -352,7 +378,10 @@ export class VercelSandboxProvider implements SandboxProvider {
       });
     }
     const id = extractString(payload, ["sessionId", "session_id", "id"]);
-    if (!id) throw new SandboxExecutionError("Vercel Sandbox did not return an active session identifier.");
+    if (!id)
+      throw new SandboxExecutionError(
+        "Vercel Sandbox did not return an active session identifier.",
+      );
     const environment: ExecutionEnvironment = {
       id,
       name,
@@ -367,15 +396,24 @@ export class VercelSandboxProvider implements SandboxProvider {
       command: "git",
       args: ["checkout", "-B", branch, baseSha],
     });
-    if (checkout.exitCode !== 0) throw new SandboxExecutionError("Sandbox could not pin the requested feature branch to the exact base SHA.");
+    if (checkout.exitCode !== 0)
+      throw new SandboxExecutionError(
+        "Sandbox could not pin the requested feature branch to the exact base SHA.",
+      );
     return environment;
   }
 
-  async execute(environment: ExecutionEnvironment, command: SandboxCommand): Promise<SandboxCommandResult> {
+  async execute(
+    environment: ExecutionEnvironment,
+    command: SandboxCommand,
+  ): Promise<SandboxCommandResult> {
     this.#assertConfigured();
     const risk = classifyCommand(command.command, command.args ?? []);
-    if (risk === "dangerous") throw new SandboxExecutionError("Dangerous command blocked by Zeus before sandbox dispatch.");
-    const cwd = command.cwd ? `${environment.root}/${assertSafeRelativePath(command.cwd)}` : environment.root;
+    if (risk === "dangerous")
+      throw new SandboxExecutionError("Dangerous command blocked by Zeus before sandbox dispatch.");
+    const cwd = command.cwd
+      ? `${environment.root}/${assertSafeRelativePath(command.cwd)}`
+      : environment.root;
     const cmdId = `zeus-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
     const payload = await this.#request(
       `/v2/sandboxes/sessions/${encodeURIComponent(environment.id)}/cmd${this.#query({ cmdId })}`,
@@ -434,11 +472,17 @@ export class VercelSandboxProvider implements SandboxProvider {
   }
 
   async stop(environment: ExecutionEnvironment): Promise<void> {
-    await this.#request(`/v2/sandboxes/sessions/${encodeURIComponent(environment.id)}/stop${this.#query()}`, { method: "POST" });
+    await this.#request(
+      `/v2/sandboxes/sessions/${encodeURIComponent(environment.id)}/stop${this.#query()}`,
+      { method: "POST" },
+    );
   }
 
   async destroy(environment: ExecutionEnvironment): Promise<void> {
     const { projectId } = this.#assertConfigured();
-    await this.#request(`/v2/sandboxes/${encodeURIComponent(environment.name)}${this.#query({ projectId })}`, { method: "DELETE" });
+    await this.#request(
+      `/v2/sandboxes/${encodeURIComponent(environment.name)}${this.#query({ projectId })}`,
+      { method: "DELETE" },
+    );
   }
 }

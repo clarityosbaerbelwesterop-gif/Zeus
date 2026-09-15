@@ -3,8 +3,12 @@ import { connections, organizations, runs, workspaces, zeus } from "./schema";
 
 export const repositoryBindings = zeus.table("repository_bindings", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
   provider: text("provider").notNull().default("github"),
   repositoryFullName: text("repository_full_name").notNull(),
   cloneUrl: text("clone_url").notNull(),
@@ -19,10 +23,18 @@ export const repositoryBindings = zeus.table("repository_bindings", {
 
 export const executionSessions = zeus.table("execution_sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
-  repositoryBindingId: uuid("repository_binding_id").notNull().references(() => repositoryBindings.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  runId: uuid("run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "cascade" }),
+  repositoryBindingId: uuid("repository_binding_id")
+    .notNull()
+    .references(() => repositoryBindings.id, { onDelete: "cascade" }),
   sandboxProvider: text("sandbox_provider").notNull().default("vercel"),
   sandboxName: text("sandbox_name").notNull(),
   sandboxSessionId: text("sandbox_session_id").notNull(),
@@ -39,10 +51,18 @@ export const executionSessions = zeus.table("execution_sessions", {
 
 export const executionCheckpoints = zeus.table("execution_checkpoints", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
-  executionSessionId: uuid("execution_session_id").notNull().references(() => executionSessions.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  runId: uuid("run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "cascade" }),
+  executionSessionId: uuid("execution_session_id")
+    .notNull()
+    .references(() => executionSessions.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
   headSha: text("head_sha").notNull(),
   worktreeSha: text("worktree_sha"),
@@ -53,10 +73,18 @@ export const executionCheckpoints = zeus.table("execution_checkpoints", {
 
 export const repositoryChangeRequests = zeus.table("repository_change_requests", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  runId: uuid("run_id").notNull().references(() => runs.id, { onDelete: "cascade" }),
-  repositoryBindingId: uuid("repository_binding_id").notNull().references(() => repositoryBindings.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  runId: uuid("run_id")
+    .notNull()
+    .references(() => runs.id, { onDelete: "cascade" }),
+  repositoryBindingId: uuid("repository_binding_id")
+    .notNull()
+    .references(() => repositoryBindings.id, { onDelete: "cascade" }),
   operation: text("operation").notNull(),
   status: text("status").notNull().default("pending"),
   headBranch: text("head_branch").notNull(),
