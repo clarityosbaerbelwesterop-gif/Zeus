@@ -1,9 +1,11 @@
 "use server";
 
 import type { AgentCode } from "@zeus/agents";
+import { requireSession } from "@zeus/auth/server";
 import { isMemoryType, isTaskPriority, isTaskStatus, isWorkspaceRole } from "@zeus/workspace";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { approveAndExecuteRepositoryChangeRequest } from "@/lib/kai-coding-tools";
 import {
   retryAgentRun,
   sendConversationMessageAndRun,
@@ -263,4 +265,13 @@ export async function updateWorkspaceMemberAction(formData: FormData) {
   await updateWorkspaceMember({ workspaceId, userId: field(formData, "userId"), role });
   revalidatePath("/app");
   redirect(workspaceLocation(workspaceId, "settings"));
+}
+
+export async function approveRepositoryChangeAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  const requestId = field(formData, "requestId");
+  const session = await requireSession();
+  await approveAndExecuteRepositoryChangeRequest(String(session.user.id), requestId);
+  revalidatePath("/app");
+  redirect(workspaceLocation(workspaceId, field(formData, "view") || "chat"));
 }

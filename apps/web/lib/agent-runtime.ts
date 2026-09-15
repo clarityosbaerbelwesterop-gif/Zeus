@@ -53,6 +53,7 @@ import {
   type VerificationEvidence,
 } from "@zeus/runtime/engine";
 import { createOpenRouterProviderFromEnv } from "@zeus/runtime/openrouter";
+import { registerKaiCodingTools } from "./kai-coding-tools";
 import { safeAuditMetadata } from "@zeus/security";
 import { messageSchema, shortTitleSchema, type RunStatus, type RunStepStatus } from "@zeus/shared";
 import { can, isMemoryType, isTaskPriority, isTaskStatus, isWorkspaceRole } from "@zeus/workspace";
@@ -1268,6 +1269,7 @@ function createInternalToolRegistry(): ToolRegistry {
       },
     }),
   );
+  registerKaiCodingTools(registry);
   return registry;
 }
 
@@ -1418,10 +1420,16 @@ async function verifyRun(
 ): Promise<readonly VerificationEvidence[]> {
   return withActor(run.actorId, async (db) => {
     const calls = await db
-      .select({ status: toolCalls.status })
+      .select({ status: toolCalls.status, toolId: toolCalls.toolId })
       .from(toolCalls)
       .where(eq(toolCalls.runId, run.id));
     const incomplete = calls.filter((call) => call.status !== "completed");
+    const completionRequirement = agentRuntimePolicy(run.agent).completionRequirement;
+    const completionSatisfied =
+      !completionRequirement ||
+      calls.some(
+        (call) => call.status === "completed" && call.toolId === completionRequirement.toolId,
+      );
     return [
       {
         status: finalText.trim() ? "passed" : "failed",
@@ -1429,6 +1437,14 @@ async function verifyRun(
         safeDetail: finalText.trim()
           ? "A non-empty final response exists for this exact run."
           : "The final response is empty.",
+      },
+      {
+        status: completionSatisfied ? "passed" : "failed",
+        checkName: "completion_requirement",
+        safeDetail: completionSatisfied
+          ? "The agent completion contract is satisfied by durable tool evidence."
+          : (completionRequirement?.recoveryInstructions ??
+            "Required completion evidence is missing."),
       },
       {
         status: incomplete.length === 0 ? "passed" : "failed",
@@ -1453,7 +1469,7 @@ function dependenciesFor(actorId: string): RuntimeExecutionDependencies {
     authorizeTool(run, tool) {
       const policy = agentRuntimePolicy(run.agent);
       tools.authorize(tool.id, run.agent, policy.maximumSideEffect);
-      if (!policy.allowedTools.includes(tool.id)) {
+      if (policy.deniedTools.includes(tool.id) || !policy.allowedTools.includes(tool.id)) {
         throw new RuntimeError(
           "TOOL_PERMISSION_DENIED",
           "Tool is not allowed by the agent policy.",
