@@ -1450,7 +1450,7 @@ function dependenciesFor(actorId: string): RuntimeExecutionDependencies {
     tools,
     provider: createOpenRouterProviderFromEnv(),
     assembleContext: contextForRun,
-    async authorizeTool(run, tool) {
+    authorizeTool(run, tool) {
       const policy = agentRuntimePolicy(run.agent);
       tools.authorize(tool.id, run.agent, policy.maximumSideEffect);
       if (!policy.allowedTools.includes(tool.id)) {
