@@ -43,11 +43,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --prod --audit-level=high
       - run: pnpm format
-      - name: Print formatting diff
+      - name: Format diagnostics
         if: failure()
         run: |
           pnpm exec prettier --write apps/web/components/workspace-run-panel.tsx apps/web/lib/agent-runtime.ts
           git diff -- apps/web/components/workspace-run-panel.tsx apps/web/lib/agent-runtime.ts
+      - name: Upload formatted diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prettier-diagnostics
+          path: |
+            apps/web/components/workspace-run-panel.tsx
+            apps/web/lib/agent-runtime.ts
+          if-no-files-found: error
+          retention-days: 1
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
