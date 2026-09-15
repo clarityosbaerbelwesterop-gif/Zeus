@@ -58,7 +58,15 @@ export const DEFAULT_RUNTIME_POLICY: RuntimePolicy = Object.freeze({
 const runTransitions: Readonly<Record<RunStatus, readonly RunStatus[]>> = {
   queued: ["preparing", "cancelled"],
   preparing: ["running", "waiting", "failed", "cancelled"],
-  running: ["waiting", "verifying", "failed", "cancelled", "paused", "needs_user_input", "needs_authorization"],
+  running: [
+    "waiting",
+    "verifying",
+    "failed",
+    "cancelled",
+    "paused",
+    "needs_user_input",
+    "needs_authorization",
+  ],
   waiting: ["running", "failed", "cancelled", "paused"],
   verifying: ["completed", "failed", "cancelled"],
   completed: [],
@@ -80,11 +88,21 @@ const stepTransitions: Readonly<Record<RunStepStatus, readonly RunStepStatus[]>>
 };
 
 export function assertRunTransition(from: RunStatus, to: RunStatus): void {
-  if (!runTransitions[from].includes(to)) throw new RuntimeError("INTERNAL_RUNTIME_ERROR", `Invalid run transition: ${from} -> ${to}`);
+  if (!runTransitions[from].includes(to)) {
+    throw new RuntimeError(
+      "INTERNAL_RUNTIME_ERROR",
+      `Invalid run transition: ${from} -> ${to}`,
+    );
+  }
 }
 
 export function assertRunStepTransition(from: RunStepStatus, to: RunStepStatus): void {
-  if (!stepTransitions[from].includes(to)) throw new RuntimeError("INTERNAL_RUNTIME_ERROR", `Invalid run step transition: ${from} -> ${to}`);
+  if (!stepTransitions[from].includes(to)) {
+    throw new RuntimeError(
+      "INTERNAL_RUNTIME_ERROR",
+      `Invalid run step transition: ${from} -> ${to}`,
+    );
+  }
 }
 
 export interface ModelMessage {
@@ -123,7 +141,9 @@ export interface ModelOutput {
 export interface ModelProvider {
   readonly id: string;
   readonly configured: boolean;
-  readonly capabilities: ReadonlySet<"stream" | "tools" | "structured_output" | "usage" | "cancellation">;
+  readonly capabilities: ReadonlySet<
+    "stream" | "tools" | "structured_output" | "usage" | "cancellation"
+  >;
   generate(input: ModelInput, signal: AbortSignal): Promise<ModelOutput>;
 }
 
@@ -162,13 +182,17 @@ export class ToolRegistry {
   readonly #tools = new Map<string, ToolDefinition>();
 
   register(tool: ToolDefinition): void {
-    if (this.#tools.has(tool.id)) throw new Error(`Tool already registered: ${tool.id}`);
+    if (this.#tools.has(tool.id)) {
+      throw new Error(`Tool already registered: ${tool.id}`);
+    }
     this.#tools.set(tool.id, tool);
   }
 
   get(toolId: string): ToolDefinition {
     const tool = this.#tools.get(toolId);
-    if (!tool) throw new RuntimeError("TOOL_NOT_FOUND", `Unknown tool: ${toolId}`);
+    if (!tool) {
+      throw new RuntimeError("TOOL_NOT_FOUND", `Unknown tool: ${toolId}`);
+    }
     return tool;
   }
 
@@ -176,10 +200,17 @@ export class ToolRegistry {
     return [...this.#tools.values()].filter((tool) => tool.allowedAgents.includes(agent));
   }
 
-  authorize(toolId: string, agent: AgentCode, maximumSideEffect: ToolSideEffect): ToolDefinition {
+  authorize(
+    toolId: string,
+    agent: AgentCode,
+    maximumSideEffect: ToolSideEffect,
+  ): ToolDefinition {
     const tool = this.get(toolId);
     if (!tool.allowedAgents.includes(agent) || tool.sideEffect > maximumSideEffect) {
-      throw new RuntimeError("TOOL_PERMISSION_DENIED", `Tool is not permitted for ${agent}.`);
+      throw new RuntimeError(
+        "TOOL_PERMISSION_DENIED",
+        `Tool is not permitted for ${agent}.`,
+      );
     }
     return tool;
   }
@@ -199,10 +230,26 @@ export interface RunRecorder {
     retryOfRunId?: string;
     parentRunId?: string;
   }): Promise<{ id: string }>;
-  transition(runId: string, from: RunStatus, to: RunStatus, safeReason?: string): Promise<void>;
-  step(runId: string, input: { status: RunStepStatus; title: string; tool?: string; safeDetail?: string }): Promise<{ id: string }>;
-  event(runId: string, type: string, safePayload?: Readonly<Record<string, unknown>>): Promise<void>;
-  finish(runId: string, status: Extract<RunStatus, "completed" | "failed" | "cancelled" | "waiting">, errorCode?: RuntimeErrorCode): Promise<void>;
+  transition(
+    runId: string,
+    from: RunStatus,
+    to: RunStatus,
+    safeReason?: string,
+  ): Promise<void>;
+  step(
+    runId: string,
+    input: { status: RunStepStatus; title: string; tool?: string; safeDetail?: string },
+  ): Promise<{ id: string }>;
+  event(
+    runId: string,
+    type: string,
+    safePayload?: Readonly<Record<string, unknown>>,
+  ): Promise<void>;
+  finish(
+    runId: string,
+    status: Extract<RunStatus, "completed" | "failed" | "cancelled" | "waiting">,
+    errorCode?: RuntimeErrorCode,
+  ): Promise<void>;
 }
 
 export class ProviderNotConfiguredError extends RuntimeError {
@@ -221,7 +268,11 @@ export const unconfiguredProvider: ModelProvider = {
   },
 };
 
-export function shouldRetry(error: RuntimeError, attempt: number, maximumAttempts = 3): boolean {
+export function shouldRetry(
+  error: RuntimeError,
+  attempt: number,
+  maximumAttempts = 3,
+): boolean {
   return error.retryable && attempt < maximumAttempts;
 }
 

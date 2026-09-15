@@ -51,6 +51,26 @@ WITH attempted AS (
 )
 SELECT 1 / CASE WHEN (SELECT count(*) FROM attempted) = 0 THEN 1 ELSE 0 END AS cross_tenant_update_denied;
 
+-- Cross-workspace relationships must fail even when their UUIDs are known.
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO zeus.tasks(workspace_id,title,created_by,parent_task_id)
+    VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Forbidden parent','rls-user-a','b1000000-0000-4000-8000-000000000001');
+    RAISE EXCEPTION 'cross-tenant task parent unexpectedly allowed';
+  EXCEPTION WHEN foreign_key_violation THEN NULL; END;
+  BEGIN
+    INSERT INTO zeus.plan_steps(plan_id,sequence,title,task_id)
+    VALUES ('a2000000-0000-4000-8000-000000000002',1,'Forbidden task','b1000000-0000-4000-8000-000000000001');
+    RAISE EXCEPTION 'cross-tenant plan link unexpectedly allowed';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+  BEGIN
+    UPDATE zeus.workspace_members SET role='member'
+      WHERE workspace_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND user_id='rls-user-a';
+    RAISE EXCEPTION 'last owner removal unexpectedly allowed';
+  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $$;
+
 SELECT set_config('zeus.user_id','rls-viewer-a',true);
 SELECT 1 / CASE WHEN (SELECT count(*) FROM zeus.workspaces WHERE id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') = 1 THEN 1 ELSE 0 END AS viewer_can_read_workspace;
 SELECT 1 / CASE WHEN (SELECT count(*) FROM zeus.tasks WHERE workspace_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') = 1 THEN 1 ELSE 0 END AS viewer_can_read_tasks;
