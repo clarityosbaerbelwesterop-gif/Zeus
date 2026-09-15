@@ -26,9 +26,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec prettier --write apps/web/lib/kai-coding-tools.ts packages/db/src/m4-schema.ts packages/runtime/src/m4-boundaries.ts
       - run: pnpm format
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
       - name: Commit formatting
         shell: bash
         run: |
@@ -38,3 +35,6 @@ jobs:
           git add apps/web/lib/kai-coding-tools.ts packages/db/src/m4-schema.ts packages/runtime/src/m4-boundaries.ts
           git commit -m "fix(m4): apply canonical formatting"
           git push origin HEAD:product/m4-kai-coding-agent
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
