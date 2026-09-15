@@ -1,8 +1,8 @@
 name: M4 Runtime Integration
 
 on:
-  push:
-    branches: [product/m4-kai-coding-agent]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -30,48 +30,39 @@ jobs:
           p = Path('apps/web/lib/agent-runtime.ts')
           s = p.read_text()
           anchor = 'import { createOpenRouterProviderFromEnv } from "@zeus/runtime/openrouter";'
-          addition = anchor + '\nimport { registerKaiCodingTools } from "./kai-coding-tools";'
           if 'registerKaiCodingTools' not in s:
-              s = s.replace(anchor, addition, 1)
+              s = s.replace(anchor, anchor + '\nimport { registerKaiCodingTools } from "./kai-coding-tools";', 1)
           old = '  return registry;\n}\n\nasync function contextForRun'
-          new = '  registerKaiCodingTools(registry);\n  return registry;\n}\n\nasync function contextForRun'
           if old in s:
-              s = s.replace(old, new, 1)
+              s = s.replace(old, '  registerKaiCodingTools(registry);\n  return registry;\n}\n\nasync function contextForRun', 1)
           old = '    const calls = await db\n      .select({ status: toolCalls.status })'
-          new = '    const calls = await db\n      .select({ status: toolCalls.status, toolId: toolCalls.toolId })'
           if old in s:
-              s = s.replace(old, new, 1)
+              s = s.replace(old, '    const calls = await db\n      .select({ status: toolCalls.status, toolId: toolCalls.toolId })', 1)
           marker = '    const incomplete = calls.filter((call) => call.status !== "completed");\n    return ['
-          replacement = '''    const incomplete = calls.filter((call) => call.status !== "completed");
+          if marker in s:
+              s = s.replace(marker, '''    const incomplete = calls.filter((call) => call.status !== "completed");
     const completionRequirement = agentRuntimePolicy(run.agent).completionRequirement;
     const completionSatisfied =
       !completionRequirement ||
-      calls.some(
-        (call) =>
-          call.status === "completed" && call.toolId === completionRequirement.toolId,
-      );
-    return ['''
-          if marker in s:
-              s = s.replace(marker, replacement, 1)
+      calls.some((call) => call.status === "completed" && call.toolId === completionRequirement.toolId);
+    return [''', 1)
           marker = '''      {
         status: incomplete.length === 0 ? "passed" : "failed",
         checkName: "tool_calls_terminal",'''
-          if marker in s and 'completion_requirement' not in s:
-              insert = '''      {
+          if marker in s and 'checkName: "completion_requirement"' not in s:
+              s = s.replace(marker, '''      {
         status: completionSatisfied ? "passed" : "failed",
         checkName: "completion_requirement",
         safeDetail: completionSatisfied
           ? "The agent completion contract is satisfied by durable tool evidence."
           : completionRequirement?.recoveryInstructions ?? "Required completion evidence is missing.",
       },
-'''
-              s = s.replace(marker, insert + marker, 1)
+''' + marker, 1)
           marker = '''      if (!policy.allowedTools.includes(tool.id)) {
         throw new RuntimeError('''
-          replacement = '''      if (policy.deniedTools.includes(tool.id) || !policy.allowedTools.includes(tool.id)) {
-        throw new RuntimeError('''
           if marker in s:
-              s = s.replace(marker, replacement, 1)
+              s = s.replace(marker, '''      if (policy.deniedTools.includes(tool.id) || !policy.allowedTools.includes(tool.id)) {
+        throw new RuntimeError(''', 1)
           p.write_text(s)
           PY
       - run: pnpm exec prettier --write apps/web/lib/agent-runtime.ts packages/agents/src/index.ts packages/runtime/src/m4-boundaries.test.ts
