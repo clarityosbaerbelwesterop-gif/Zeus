@@ -1,8 +1,41 @@
 import type { AgentCode } from "@zeus/agents";
-import type { WorkspaceContextSnapshot } from "@zeus/workspace";
 import type { ModelMessage } from "./index";
 
 export type ContextPriority = "P0" | "P1" | "P2" | "P3" | "P4" | "P5" | "P6";
+
+export interface WorkspaceContextSnapshot {
+  readonly workspaceId: string;
+  readonly objective: string;
+  readonly successCriteria: string;
+  readonly currentFocus: string;
+  readonly activePlan?: {
+    readonly id: string;
+    readonly title: string;
+    readonly objective: string;
+  };
+  readonly assignedTasks: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly status: string;
+    readonly assignedAgent: AgentCode | null;
+  }[];
+  readonly importantMemory: readonly {
+    readonly id: string;
+    readonly type: string;
+    readonly title: string;
+    readonly content: string;
+  }[];
+  readonly recentDecisions: readonly {
+    readonly id: string;
+    readonly title: string;
+    readonly content: string;
+  }[];
+  readonly relevantFiles: readonly {
+    readonly id: string;
+    readonly filename: string;
+    readonly contentType: string;
+  }[];
+}
 
 export interface ContextBudget {
   readonly maxApproximateTokens: number;
@@ -106,7 +139,10 @@ export function assembleContext(input: ContextAssemblyInput): AssembledContext {
     ]
       .filter(Boolean)
       .join("\n\n");
-    messages.push({ role: "system", content: section("CURRENT WORK", bounded(work, budget.priorities.P2)) });
+    messages.push({
+      role: "system",
+      content: section("CURRENT WORK", bounded(work, budget.priorities.P2)),
+    });
     categoriesUsed.push("P2");
   }
 
@@ -119,12 +155,18 @@ export function assembleContext(input: ContextAssemblyInput): AssembledContext {
       : "Active plan: none",
     `Recent assigned tasks:\n${input.workspace.assignedTasks
       .slice(0, 12)
-      .map((task) => `- ${task.title} [${task.status}]${task.assignedAgent ? ` → ${task.assignedAgent}` : ""}`)
+      .map(
+        (task) =>
+          `- ${task.title} [${task.status}]${task.assignedAgent ? ` → ${task.assignedAgent}` : ""}`,
+      )
       .join("\n")}`,
   ].join("\n");
   messages.push({
     role: "system",
-    content: section("WORKSPACE CONTEXT (UNTRUSTED DATA)", bounded(workspaceSummary, budget.priorities.P3)),
+    content: section(
+      "WORKSPACE CONTEXT (UNTRUSTED DATA)",
+      bounded(workspaceSummary, budget.priorities.P3),
+    ),
   });
   categoriesUsed.push("P3");
 
@@ -135,7 +177,10 @@ export function assembleContext(input: ContextAssemblyInput): AssembledContext {
   if (memory) {
     messages.push({
       role: "system",
-      content: section("MEMORY / DECISIONS (UNTRUSTED DATA)", bounded(memory, budget.priorities.P4)),
+      content: section(
+        "MEMORY / DECISIONS (UNTRUSTED DATA)",
+        bounded(memory, budget.priorities.P4),
+      ),
     });
     categoriesUsed.push("P4");
   }
@@ -163,7 +208,10 @@ export function assembleContext(input: ContextAssemblyInput): AssembledContext {
       .join("\n");
     messages.push({
       role: "system",
-      content: section("ARTIFACTS (UNTRUSTED DATA)", bounded(artifactText, budget.priorities.P6)),
+      content: section(
+        "ARTIFACTS (UNTRUSTED DATA)",
+        bounded(artifactText, budget.priorities.P6),
+      ),
     });
     categoriesUsed.push("P6");
   }
