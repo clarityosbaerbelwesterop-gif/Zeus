@@ -73,7 +73,11 @@ export interface ContextAssemblyInput {
   readonly agent: AgentCode;
   readonly workspace: WorkspaceContextSnapshot;
   readonly task?: { readonly id: string; readonly title: string; readonly description?: string };
-  readonly planStep?: { readonly id: string; readonly title: string; readonly description?: string };
+  readonly planStep?: {
+    readonly id: string;
+    readonly title: string;
+    readonly description?: string;
+  };
   readonly recentMessages?: readonly RecentConversationMessage[];
   readonly artifacts?: readonly ContextArtifact[];
   readonly budget?: ContextBudget;
@@ -208,10 +212,7 @@ export function assembleContext(input: ContextAssemblyInput): AssembledContext {
       .join("\n");
     messages.push({
       role: "system",
-      content: section(
-        "ARTIFACTS (UNTRUSTED DATA)",
-        bounded(artifactText, budget.priorities.P6),
-      ),
+      content: section("ARTIFACTS (UNTRUSTED DATA)", bounded(artifactText, budget.priorities.P6)),
     });
     categoriesUsed.push("P6");
   }
