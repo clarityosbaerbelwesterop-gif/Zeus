@@ -1,5 +1,9 @@
 BEGIN;
 
+ALTER TABLE zeus.runs DROP CONSTRAINT runs_status_check;
+ALTER TABLE zeus.run_steps DROP CONSTRAINT run_steps_status_check;
+UPDATE zeus.run_steps SET status='pending' WHERE status='queued';
+
 ALTER TABLE zeus.runs
   ADD COLUMN organization_id uuid,
   ADD COLUMN run_type text NOT NULL DEFAULT 'conversation_run',
@@ -36,7 +40,9 @@ ALTER TABLE zeus.runs
   ADD CONSTRAINT runs_plan_step_fk FOREIGN KEY(plan_step_id)
     REFERENCES zeus.plan_steps(id) ON DELETE SET NULL,
   ADD CONSTRAINT runs_run_type_check CHECK(run_type IN ('conversation_run','task_run','plan_step_run')),
-  ADD CONSTRAINT runs_status_check CHECK(status IN ('queued','preparing','running','waiting','verifying','completed','failed','cancelled','paused','needs_user_input','needs_authorization'));
+  ADD CONSTRAINT runs_status_check CHECK(status IN ('queued','preparing','running','waiting','verifying','completed','failed','cancelled','paused','needs_user_input','needs_authorization')),
+  ADD CONSTRAINT runs_error_detail_bound CHECK(safe_error_detail IS NULL OR octet_length(safe_error_detail) <= 4096),
+  ADD CONSTRAINT runs_context_trace_bound CHECK(octet_length(context_trace::text) <= 16384);
 
 CREATE UNIQUE INDEX runs_workspace_idempotency_unique
   ON zeus.runs(workspace_id,idempotency_key)
@@ -49,6 +55,10 @@ ALTER TABLE zeus.run_steps
   ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now(),
   ADD CONSTRAINT run_steps_id_run UNIQUE(id,run_id),
   ADD CONSTRAINT run_steps_status_check CHECK(status IN ('pending','running','waiting','completed','failed','skipped','cancelled'));
+
+ALTER TABLE zeus.artifacts
+  ADD COLUMN content_text text,
+  ADD CONSTRAINT artifacts_content_text_bound CHECK(content_text IS NULL OR octet_length(content_text) <= 262144);
 
 CREATE FUNCTION zeus.guard_run_plan_step_workspace() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,zeus AS $$
@@ -105,7 +115,7 @@ CREATE TABLE zeus.tool_calls (
   CONSTRAINT tool_calls_run_workspace FOREIGN KEY(run_id,workspace_id)
     REFERENCES zeus.runs(id,workspace_id) ON DELETE CASCADE,
   CONSTRAINT tool_calls_step_run FOREIGN KEY(run_step_id,run_id)
-    REFERENCES zeus.run_steps(id,run_id) ON DELETE SET NULL,
+    REFERENCES zeus.run_steps(id,run_id) ON DELETE RESTRICT,
   CONSTRAINT tool_calls_side_effect_check CHECK(side_effect_level BETWEEN 0 AND 4),
   CONSTRAINT tool_calls_status_check CHECK(status IN ('requested','running','completed','failed','cancelled','waiting_authorization')),
   CONSTRAINT tool_calls_input_bound CHECK(octet_length(safe_input_summary) <= 4096),
