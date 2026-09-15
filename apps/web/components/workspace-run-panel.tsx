@@ -1,4 +1,6 @@
-import { retryRunAction, stopRunAction } from "@/app/app/actions";
+import { approveRepositoryChangeAction, retryRunAction, stopRunAction } from "@/app/app/actions";
+import { requireSession } from "@zeus/auth/server";
+import { listRunRepositoryChangeRequests } from "@/lib/kai-coding-tools";
 import { getRunEvidence } from "@/lib/agent-runtime";
 import { latestRuntimeRunId } from "@/lib/run-queries";
 import { timeLabel } from "./workspace-ui";
@@ -42,6 +44,11 @@ export async function RunPanel({
   const { run, steps, tools, verification } = evidence;
   const active = activeStatuses.has(run.status);
   const retryable = run.status === "failed" || run.status === "cancelled";
+  const session = await requireSession();
+  const changeRequests =
+    run.agent === "kai"
+      ? await listRunRepositoryChangeRequests(String(session.user.id), run.id)
+      : [];
 
   return (
     <section className="mt-6 overflow-hidden rounded-[22px] border border-[var(--line)] bg-white/45">
@@ -156,6 +163,28 @@ export async function RunPanel({
               </div>
             ))}
           </dl>
+          {changeRequests
+            .filter((request) => request.status === "pending")
+            .map((request) => (
+              <form
+                key={request.id}
+                action={approveRepositoryChangeAction}
+                className="mt-3 rounded-xl border border-[var(--line)] bg-white/60 p-3"
+              >
+                <input type="hidden" name="workspaceId" value={workspaceId} />
+                <input type="hidden" name="requestId" value={request.id} />
+                {view ? <input type="hidden" name="view" value={view} /> : null}
+                <p className="font-medium">
+                  Approval required: {request.operation.replaceAll("_", " ")}
+                </p>
+                <p className="mt-1 text-[11px] text-[var(--muted)]">
+                  {request.headBranch} · {request.expectedHeadSha.slice(0, 8)}
+                </p>
+                <button className="mt-2 rounded-full bg-[var(--ink)] px-3 py-1 text-[11px] font-medium text-white">
+                  Approve & execute
+                </button>
+              </form>
+            ))}
           {evidence.events.length ? (
             <p className="mt-4 text-[11px] text-[var(--muted)]">
               Last evidence: {timeLabel(evidence.events.at(-1)?.createdAt ?? new Date())}

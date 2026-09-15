@@ -89,13 +89,22 @@ export const AGENT_TEMPLATES: readonly AgentTemplate[] = Object.freeze([
 
 export type AgentContextCategory =
   "request" | "policy" | "task" | "workspace" | "memory" | "conversation" | "artifacts";
+export type AgentPermissionMode = "read_only" | "supervised" | "autonomous";
+
+export interface AgentCompletionRequirement {
+  readonly toolId: string;
+  readonly recoveryInstructions: string;
+}
 
 export interface AgentRuntimePolicy {
   readonly instructions: string;
   readonly allowedTools: readonly string[];
-  readonly maximumSideEffect: 0 | 1;
+  readonly deniedTools: readonly string[];
+  readonly maximumSideEffect: 0 | 1 | 2 | 3 | 4;
+  readonly permissionMode: AgentPermissionMode;
   readonly contextCategories: readonly AgentContextCategory[];
   readonly verification: "deterministic";
+  readonly completionRequirement?: AgentCompletionRequirement;
 }
 
 const commonReadTools = [
@@ -111,11 +120,29 @@ const commonReadTools = [
   "activity.list",
   "agents.list_workspace_agents",
 ] as const;
+const repositoryTools = [
+  "repo.attach",
+  "repo.map",
+  "repo.read_file",
+  "repo.search",
+  "repo.write_file",
+  "repo.run_command",
+  "repo.run_quality_gate",
+  "repo.git_status",
+  "repo.git_diff",
+  "repo.git_commit",
+  "repo.checkpoint",
+  "repo.rewind",
+  "repo.complete",
+  "repo.prepare_push",
+  "repo.prepare_pull_request",
+] as const;
+const repositoryDenials = [...repositoryTools] as const;
 
 export const AGENT_RUNTIME_POLICIES: Readonly<Record<AgentCode, AgentRuntimePolicy>> = {
   jorge: {
     instructions:
-      "Coordinate the workspace using persisted plans and tasks. Prefer explicit assignments, concise progress summaries, and deterministic verification of every mutation.",
+      "Coordinate the workspace using persisted plans and tasks. Prefer explicit assignments, concise progress summaries, and deterministic verification of every mutation. Delegate coding work to Kai rather than executing repository tools yourself.",
     allowedTools: [
       ...commonReadTools,
       "tasks.create",
@@ -128,7 +155,9 @@ export const AGENT_RUNTIME_POLICIES: Readonly<Record<AgentCode, AgentRuntimePoli
       "memory.create",
       "artifacts.create_text",
     ],
+    deniedTools: repositoryDenials,
     maximumSideEffect: 1,
+    permissionMode: "supervised",
     contextCategories: [
       "request",
       "policy",
@@ -142,9 +171,16 @@ export const AGENT_RUNTIME_POLICIES: Readonly<Record<AgentCode, AgentRuntimePoli
   },
   kai: {
     instructions:
-      "Act as a senior software engineer using only the workspace information and internal tools available in M3. Create technical plans, reports, and code/text artifacts; do not claim shell or repository execution.",
-    allowedTools: [...commonReadTools, "memory.create", "artifacts.create_text"],
-    maximumSideEffect: 1,
+      "Act as Zeus's senior coding agent. Repository, file, terminal, test and Git work must execute only through the isolated repository tools; never execute generated code in the web process and never claim a command, test, commit, push or pull request without durable tool evidence. Pin work to the exact requested base SHA, use only zeus/* feature branches, repair failing quality gates before completion, and never push or open a pull request without an explicit persisted user approval.",
+    allowedTools: [
+      ...commonReadTools,
+      "memory.create",
+      "artifacts.create_text",
+      ...repositoryTools,
+    ],
+    deniedTools: [],
+    maximumSideEffect: 3,
+    permissionMode: "supervised",
     contextCategories: [
       "request",
       "policy",
@@ -155,20 +191,29 @@ export const AGENT_RUNTIME_POLICIES: Readonly<Record<AgentCode, AgentRuntimePoli
       "artifacts",
     ],
     verification: "deterministic",
+    completionRequirement: {
+      toolId: "repo.complete",
+      recoveryInstructions:
+        "You have not satisfied Kai's completion contract. Inspect repository status and diff, run the required quality gates, repair failures, then call repo.complete with evidence. Do not claim the coding task is complete before that tool succeeds.",
+    },
   },
   lora: {
     instructions:
-      "Analyze product and interface context, then produce concrete UX/UI recommendations and design artifacts without inventing external research or completed implementation.",
+      "Analyze product and interface context, then produce concrete UX/UI recommendations and design artifacts. Delegate implementation to Kai and never claim repository execution you did not perform.",
     allowedTools: [...commonReadTools, "memory.create", "artifacts.create_text"],
+    deniedTools: repositoryDenials,
     maximumSideEffect: 1,
+    permissionMode: "read_only",
     contextCategories: ["request", "policy", "task", "workspace", "memory", "artifacts"],
     verification: "deterministic",
   },
   simon: {
     instructions:
-      "Review available workspace evidence for correctness, security, and regressions. Produce verification plans and security reports, and distinguish observed evidence from assumptions.",
+      "Review available workspace and run evidence for correctness, security, and regressions. Produce verification plans and security reports, distinguish observed evidence from assumptions, and use Kai for repository mutations.",
     allowedTools: [...commonReadTools, "memory.create", "artifacts.create_text"],
+    deniedTools: repositoryDenials,
     maximumSideEffect: 1,
+    permissionMode: "read_only",
     contextCategories: [
       "request",
       "policy",
@@ -182,9 +227,11 @@ export const AGENT_RUNTIME_POLICIES: Readonly<Record<AgentCode, AgentRuntimePoli
   },
   sara: {
     instructions:
-      "Use workspace commercial context to prepare sales plans and outbound drafts. Do not perform external account actions or claim messages were sent.",
+      "Use workspace commercial context to prepare sales plans and outbound drafts. Do not perform external account actions or repository operations and never claim messages were sent.",
     allowedTools: [...commonReadTools, "memory.create", "artifacts.create_text"],
+    deniedTools: repositoryDenials,
     maximumSideEffect: 1,
+    permissionMode: "read_only",
     contextCategories: ["request", "policy", "task", "workspace", "memory", "artifacts"],
     verification: "deterministic",
   },
@@ -193,7 +240,6 @@ export const AGENT_RUNTIME_POLICIES: Readonly<Record<AgentCode, AgentRuntimePoli
 export function agentTemplate(code: string): AgentTemplate | undefined {
   return AGENT_TEMPLATES.find((agent) => agent.code === code);
 }
-
 export function agentRuntimePolicy(code: AgentCode): AgentRuntimePolicy {
   return AGENT_RUNTIME_POLICIES[code];
 }
