@@ -4,7 +4,10 @@ export interface ExecutionEnvironment {
 }
 
 export interface SandboxProvider {
-  create(input: { readonly workspaceId: string; readonly runId: string }): Promise<ExecutionEnvironment>;
+  create(input: {
+    readonly workspaceId: string;
+    readonly runId: string;
+  }): Promise<ExecutionEnvironment>;
   destroy(environment: ExecutionEnvironment): Promise<void>;
 }
 
