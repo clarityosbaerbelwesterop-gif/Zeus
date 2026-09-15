@@ -1,0 +1,50 @@
+name: M3 Bootstrap Verify
+
+on:
+  push:
+    branches: [product/m3-agent-runtime]
+
+permissions:
+  contents: read
+
+env:
+  NEON_AUTH_BASE_URL: https://auth.example.invalid/zeus/auth
+  NEON_AUTH_COOKIE_SECRET: ci-cookie-secret-that-is-longer-than-thirty-two-characters
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/zeus
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: zeus
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U ci -d zeus"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.17.1
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Verify migrations and RLS baseline
+        run: |
+          for migration in packages/db/migrations/*.sql; do psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"; done
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/rls.sql
+      - run: pnpm build
