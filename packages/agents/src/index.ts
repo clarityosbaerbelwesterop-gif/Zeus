@@ -88,7 +88,13 @@ export const AGENT_TEMPLATES: readonly AgentTemplate[] = Object.freeze([
 ]);
 
 export type AgentContextCategory =
-  "request" | "policy" | "task" | "workspace" | "memory" | "conversation" | "artifacts";
+  | "request"
+  | "policy"
+  | "task"
+  | "workspace"
+  | "memory"
+  | "conversation"
+  | "artifacts";
 export type AgentPermissionMode = "read_only" | "supervised" | "autonomous";
 
 export interface AgentCompletionRequirement {
@@ -138,6 +144,7 @@ const repositoryTools = [
   "repo.prepare_pull_request",
 ] as const;
 const repositoryDenials = [...repositoryTools] as const;
+const externalMutationDenials = ["external.send"] as const;
 
 export const AGENT_RUNTIME_POLICIES: Readonly<Record<AgentCode, AgentRuntimePolicy>> = {
   jorge: {
@@ -178,7 +185,7 @@ export const AGENT_RUNTIME_POLICIES: Readonly<Record<AgentCode, AgentRuntimePoli
       "artifacts.create_text",
       ...repositoryTools,
     ],
-    deniedTools: [],
+    deniedTools: externalMutationDenials,
     maximumSideEffect: 3,
     permissionMode: "supervised",
     contextCategories: [
