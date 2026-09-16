@@ -5,6 +5,7 @@ import type { WorkspacePageData } from "@/lib/product";
 import { AgentMark } from "./agent-mark";
 import { CommandPalette } from "./command-palette";
 import { ConversationView } from "./workspace-conversation";
+import { AutopilotView } from "./workspace-autopilot";
 import { WorkspaceCreateForm } from "./workspace-create-form";
 import { ArtifactsView, FilesView } from "./workspace-files-artifacts";
 import { WorkspaceHome } from "./workspace-home";
@@ -18,6 +19,7 @@ import { timeLabel, workspaceHref } from "./workspace-ui";
 
 const viewLabels: Record<string, string> = {
   home: "Workspace",
+  autopilot: "Business Autopilot",
   team: "Team",
   tasks: "Tasks",
   plans: "Plans",
@@ -55,6 +57,7 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
   const role = data.membershipRole;
   const canWrite = Boolean(role && can(role, "task.write"));
   const canManage = Boolean(role && can(role, "workspace.manage"));
+  const providerReady = Boolean(process.env.UNOROUTER_API_KEY_1 || process.env.OPENROUTER_API_KEY);
 
   return (
     <main className="workspace-grid grid min-h-screen grid-cols-[252px_minmax(0,1fr)_300px] bg-[var(--paper)]">
@@ -114,6 +117,11 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
             href={workspaceHref(workspace.id)}
             active={selectedView === "home"}
             label="Home"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "autopilot")}
+            active={selectedView === "autopilot"}
+            label="Autopilot"
           />
           <SidebarLink
             href={workspaceHref(workspace.id, "team")}
@@ -216,7 +224,7 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
               {role?.toUpperCase()}
             </span>
             <span className="rounded-full border border-[var(--line)] bg-white/50 px-3 py-1.5 text-xs text-[var(--muted)]">
-              AI {process.env.OPENROUTER_API_KEY ? "ready" : "not configured"}
+              AI {providerReady ? "ready" : "not configured"}
             </span>
           </div>
         </header>
@@ -224,6 +232,13 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
         <div className="min-w-0 flex-1 px-4 py-6 sm:px-6 md:px-8">
           {data.activeConversation ? (
             <ConversationView data={data} />
+          ) : selectedView === "autopilot" ? (
+            <AutopilotView
+              workspaceId={workspace.id}
+              workspaceName={workspace.name}
+              workspaceObjective={workspace.objective}
+              canManage={canManage}
+            />
           ) : selectedView === "team" ? (
             <TeamView
               data={data}

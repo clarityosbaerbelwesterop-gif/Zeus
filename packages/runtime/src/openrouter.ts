@@ -9,6 +9,7 @@ import {
   type ModelToolCall,
   type ModelUsage,
 } from "./index";
+import { createUnoRouterProviderFromEnv } from "./unorouter";
 
 interface OpenRouterProviderOptions {
   readonly apiKey: string;
@@ -291,6 +292,13 @@ export function createOpenRouterProvider(options: OpenRouterProviderOptions): Mo
 export function createOpenRouterProviderFromEnv(
   environment: Readonly<Record<string, string | undefined>> = process.env,
 ): ModelProvider {
+  // Backward-compatible call site: UnoRouter is the canonical Zeus provider.
+  // Keeping this function avoids a broad runtime refactor while ensuring existing
+  // M3 execution immediately uses the canonical credentials when they are present.
+  if (environment.UNOROUTER_API_KEY_1?.trim()) {
+    return createUnoRouterProviderFromEnv(environment);
+  }
+
   const apiKey = environment.OPENROUTER_API_KEY?.trim();
   const model = environment.ZEUS_DEFAULT_MODEL?.trim();
   if (!apiKey || !model) return unconfiguredProvider;
