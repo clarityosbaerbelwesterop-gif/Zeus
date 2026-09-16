@@ -23,20 +23,14 @@ describe("M4 Kai execution boundaries", () => {
     }
     expect(validateBaseSha("a".repeat(40))).toBe("a".repeat(40));
     expect(validateFeatureBranch("zeus/m4-safe-work")).toBe("zeus/m4-safe-work");
-    expect(validateFeatureBranch("zeus/kai/customer-task-42")).toBe(
-      "zeus/kai/customer-task-42",
-    );
+    expect(validateFeatureBranch("zeus/kai/customer-task-42")).toBe("zeus/kai/customer-task-42");
     expect(() => validateFeatureBranch("main")).toThrow();
     expect(() => validateFeatureBranch("production")).toThrow();
     expect(() => validateBaseSha("main")).toThrow();
   });
 
   it("rejects malformed repository identities instead of hard-coding a Zeus repository", () => {
-    const malformed = [
-      "Zeus",
-      "owner/repo/extra",
-      "https://github.com/owner/repo",
-    ];
+    const malformed = ["Zeus", "owner/repo/extra", "https://github.com/owner/repo"];
     for (const repository of malformed) {
       expect(() => validateRepositoryFullName(repository)).toThrow();
     }
