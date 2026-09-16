@@ -3,6 +3,11 @@ import { agentRuntimePolicy, type AgentCode } from "@zeus/agents";
 import type { RunStatus, RunStepStatus } from "@zeus/shared";
 import type { AssembledContext, SafeContextTrace } from "./context";
 import {
+  assertRuntimeBudgetWithinPolicy,
+  assertRuntimeUsageTelemetry,
+  type RuntimeUsageTotals,
+} from "./budget";
+import {
   DEFAULT_RUNTIME_POLICY,
   ProviderNotConfiguredError,
   RuntimeError,
@@ -111,7 +116,12 @@ export interface RuntimeStore {
       readonly errorCode?: RuntimeErrorCode;
     },
   ): Promise<void>;
-  recordUsage(run: RuntimeRun, provider: string, model: string, usage?: ModelUsage): Promise<void>;
+  recordUsage(
+    run: RuntimeRun,
+    provider: string,
+    model: string,
+    usage?: ModelUsage,
+  ): Promise<RuntimeUsageTotals>;
   recordVerification(run: RuntimeRun, evidence: VerificationEvidence): Promise<void>;
   persistFinalResponse(run: RuntimeRun, text: string): Promise<void>;
   acquireLease(runId: string, owner: string, ttlMs: number): Promise<boolean>;
@@ -407,7 +417,14 @@ export async function executeRun(
           current,
           dependencies.store,
         );
-        await dependencies.store.recordUsage(current, output.provider, output.model, output.usage);
+        assertRuntimeUsageTelemetry(output.usage, policy);
+        const usageTotals = await dependencies.store.recordUsage(
+          current,
+          output.provider,
+          output.model,
+          output.usage,
+        );
+        assertRuntimeBudgetWithinPolicy(usageTotals, policy);
         await dependencies.store.updateStep(modelStep.id, "completed", {
           safeDetail: output.toolCalls?.length
             ? `Model requested ${output.toolCalls.length} tool call(s).`

@@ -494,7 +494,7 @@ function runtimeStore(actorId: string): RuntimeStore {
       });
     },
     async recordUsage(run, provider, model, usage?: ModelUsage) {
-      await withActor(actorId, async (db) => {
+      return withActor(actorId, async (db) => {
         await db.insert(usageRecords).values({
           organizationId: run.organizationId,
           workspaceId: run.workspaceId,
@@ -508,6 +508,26 @@ function runtimeStore(actorId: string): RuntimeStore {
           estimatedCost: usage?.estimatedCost === undefined ? null : usage.estimatedCost.toFixed(8),
           latencyMs: usage?.latencyMs ?? null,
         });
+        const totals = (
+          await db
+            .select({
+              modelCalls: count(),
+              inputTokens: sql<string>`coalesce(sum(${usageRecords.inputTokens}), 0)::text`,
+              outputTokens: sql<string>`coalesce(sum(${usageRecords.outputTokens}), 0)::text`,
+              cachedTokens: sql<string>`coalesce(sum(${usageRecords.cachedTokens}), 0)::text`,
+              estimatedCost: sql<string>`coalesce(sum(${usageRecords.estimatedCost}), 0)::text`,
+            })
+            .from(usageRecords)
+            .where(eq(usageRecords.runId, run.id))
+            .limit(1)
+        )[0];
+        return {
+          modelCalls: Number(totals?.modelCalls ?? 0),
+          inputTokens: Number(totals?.inputTokens ?? 0),
+          outputTokens: Number(totals?.outputTokens ?? 0),
+          cachedTokens: Number(totals?.cachedTokens ?? 0),
+          estimatedCost: Number(totals?.estimatedCost ?? 0),
+        };
       });
     },
     async recordVerification(run, evidence: VerificationEvidence) {

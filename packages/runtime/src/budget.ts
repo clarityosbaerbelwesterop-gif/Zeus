@@ -24,7 +24,15 @@ function finiteNonNegative(value: number | undefined, label: string, integer: bo
   return value;
 }
 
-function assertTelemetryAvailable(usage: ModelUsage | undefined, policy: RuntimePolicy): void {
+export function assertRuntimeUsageTelemetry(
+  usage: ModelUsage | undefined,
+  policy: RuntimePolicy,
+): void {
+  finiteNonNegative(usage?.inputTokens, "input token", true);
+  finiteNonNegative(usage?.outputTokens, "output token", true);
+  finiteNonNegative(usage?.cachedTokens, "cached token", true);
+  finiteNonNegative(usage?.estimatedCost, "estimated cost", false);
+
   if (policy.maxRunTokens !== undefined) {
     if (usage?.inputTokens === undefined || usage.outputTokens === undefined) {
       throw new RuntimeError(
@@ -122,7 +130,7 @@ export class RuntimeBudgetLedger {
   constructor(private readonly policy: RuntimePolicy) {}
 
   debit(usage: ModelUsage | undefined): RuntimeUsageTotals {
-    assertTelemetryAvailable(usage, this.policy);
+    assertRuntimeUsageTelemetry(usage, this.policy);
     const next = accumulateRuntimeUsage(this.#totals, usage);
     assertRuntimeBudgetWithinPolicy(next, this.policy);
     this.#totals = next;
