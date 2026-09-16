@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { AgentCode } from "@zeus/agents";
 import { requireSession } from "@zeus/auth/server";
 import {
+  companies,
+  missions,
   planSteps,
   plans,
   runtimeRuns,
@@ -25,7 +27,7 @@ import { can, isWorkspaceRole } from "@zeus/workspace";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { startTaskRun } from "./agent-runtime";
 
-const AUTOPILOT_AGENTS: readonly AgentCode[] = ["jorge", "kai", "lora", "simon", "sara"];
+const AUTOPILOT_AGENTS: readonly AgentCode[] = ["kai", "lora", "jorge", "simon", "sara"];
 
 interface AutopilotTaskTemplate {
   readonly key: string;
@@ -39,7 +41,7 @@ const AUTOPILOT_TASKS: readonly AutopilotTaskTemplate[] = [
   {
     key: "operate",
     title: "Define the operating system and execution brief",
-    agent: "jorge",
+    agent: "kai",
     description:
       "Turn the approved business objective into a concrete execution brief. Define milestones, owners, dependencies, success metrics, known constraints and the order of work. Persist important decisions and leave the workspace in a state the specialist agents can execute without inventing authority.",
     dependsOn: [],
@@ -47,7 +49,7 @@ const AUTOPILOT_TASKS: readonly AutopilotTaskTemplate[] = [
   {
     key: "build",
     title: "Build the product and production foundation",
-    agent: "kai",
+    agent: "lora",
     description:
       "Implement the approved product and technical foundation using the connected repository and infrastructure that are actually available. Reuse existing architecture, produce durable artifacts and verification evidence, and do not claim deployment or integration work that was not performed.",
     dependsOn: ["operate"],
@@ -55,7 +57,7 @@ const AUTOPILOT_TASKS: readonly AutopilotTaskTemplate[] = [
   {
     key: "design",
     title: "Design the product experience and customer journey",
-    agent: "lora",
+    agent: "jorge",
     description:
       "Shape the approved product into a coherent end-to-end user experience. Define the information architecture, onboarding, ChatHub/work surface, operating states, approval moments and visual QA requirements while staying inside the approved business plan.",
     dependsOn: ["operate"],
@@ -73,7 +75,7 @@ const AUTOPILOT_TASKS: readonly AutopilotTaskTemplate[] = [
     title: "Verify security, quality and launch readiness",
     agent: "simon",
     description:
-      "Audit the delivered product, UX and operational setup. Run the available tests, inspect security boundaries and regression risks, verify evidence from the other agents and record concrete blockers. Only mark work ready when the evidence supports it.",
+      "Research and audit the delivered product, UX and operational setup. Run the available tests, inspect security boundaries and regression risks, verify evidence from the other agents and record concrete blockers. Only mark work ready when the evidence supports it.",
     dependsOn: ["build", "design", "go-to-market"],
   },
 ];
@@ -110,13 +112,14 @@ export async function draftBusinessAutopilot(input: {
   workspaceId: string;
   businessName: string;
   objective: string;
-}): Promise<{ planId: string; teamRunId: string }> {
+}): Promise<{ planId: string; teamRunId: string; missionId: string }> {
   const userId = await actorId();
   await requireAutopilotAccess(userId, input.workspaceId);
   const businessName = shortTitleSchema.parse(input.businessName.trim());
   const objective = workspaceObjectiveSchema.parse(input.objective);
   const planId = randomUUID();
   const teamRunId = randomUUID();
+  const missionId = randomUUID();
 
   await withActor(userId, async (db) => {
     const workspace = (
@@ -127,6 +130,31 @@ export async function draftBusinessAutopilot(input: {
         .limit(1)
     )[0];
     if (!workspace) throw new Error("Workspace not found.");
+
+    const existingCompany = (
+      await db
+        .select({ id: companies.id })
+        .from(companies)
+        .where(eq(companies.workspaceId, input.workspaceId))
+        .limit(1)
+    )[0];
+    const companyId = existingCompany?.id ?? randomUUID();
+    if (existingCompany) {
+      await db
+        .update(companies)
+        .set({ name: businessName, mission: objective, status: "planning", updatedAt: new Date() })
+        .where(eq(companies.id, companyId));
+    } else {
+      await db.insert(companies).values({
+        id: companyId,
+        organizationId: workspace.organizationId,
+        workspaceId: input.workspaceId,
+        name: businessName,
+        mission: objective,
+        status: "planning",
+        createdBy: userId,
+      });
+    }
 
     await db
       .insert(workspaceAgents)
@@ -142,9 +170,23 @@ export async function draftBusinessAutopilot(input: {
     await db.insert(plans).values({
       id: planId,
       workspaceId: input.workspaceId,
-      title: `${businessName} · approved operating plan`.slice(0, 240),
+      title: `${businessName} · operating plan`.slice(0, 240),
       objective,
       status: "draft",
+      createdBy: userId,
+    });
+
+    await db.insert(missions).values({
+      id: missionId,
+      organizationId: workspace.organizationId,
+      workspaceId: input.workspaceId,
+      companyId,
+      planId,
+      title: `${businessName} · initial build`.slice(0, 240),
+      outcome: objective,
+      status: "awaiting_approval",
+      approvalRequired: true,
+      idempotencyKey: `business-autopilot:${planId}`,
       createdBy: userId,
     });
 
@@ -195,7 +237,7 @@ export async function draftBusinessAutopilot(input: {
       id: taskIds.get(template.key)!,
       agent: template.agent,
       dependsOn: template.dependsOn.map((key) => taskIds.get(key)!),
-      ...(template.agent === "kai" || template.agent === "lora" || template.agent === "sara"
+      ...(template.agent === "lora" || template.agent === "jorge" || template.agent === "sara"
         ? { reviewBy: "simon" as const }
         : {}),
     }));
@@ -207,7 +249,7 @@ export async function draftBusinessAutopilot(input: {
       workspaceId: input.workspaceId,
       objective,
       status: "planning",
-      coordinatorAgent: "jorge",
+      coordinatorAgent: "kai",
       createdBy: userId,
       maxParallel: 3,
       maxRework: 2,
@@ -220,13 +262,13 @@ export async function draftBusinessAutopilot(input: {
       actorType: "system",
       actorId: userId,
       eventType: "autopilot.plan_drafted",
-      entityType: "team_run",
-      entityId: teamRunId,
-      safePayload: { planId, businessName, taskCount: AUTOPILOT_TASKS.length },
+      entityType: "mission",
+      entityId: missionId,
+      safePayload: { planId, teamRunId, businessName, taskCount: AUTOPILOT_TASKS.length },
     });
   });
 
-  return { planId, teamRunId };
+  return { planId, teamRunId, missionId };
 }
 
 async function planGraph(userId: string, workspaceId: string, planId: string): Promise<TeamTask[]> {
@@ -279,7 +321,7 @@ async function markRunResult(
       taskId: task.id,
       agentCode: task.agent,
       role:
-        task.agent === "jorge" ? "coordinator" : task.agent === "simon" ? "reviewer" : "specialist",
+        task.agent === "kai" ? "coordinator" : task.agent === "simon" ? "reviewer" : "specialist",
     });
     if (run?.status !== "completed") return false;
     const now = new Date();
@@ -320,8 +362,19 @@ export async function approveAndRunBusinessAutopilot(input: {
         .where(and(eq(plans.id, input.planId), eq(plans.workspaceId, input.workspaceId)))
         .limit(1)
     )[0];
-    if (!teamRun || !plan) throw new Error("Autopilot draft not found.");
-    if (teamRun.status !== "planning" || plan.status !== "draft") {
+    const mission = (
+      await db
+        .select()
+        .from(missions)
+        .where(and(eq(missions.planId, input.planId), eq(missions.workspaceId, input.workspaceId)))
+        .limit(1)
+    )[0];
+    if (!teamRun || !plan || !mission) throw new Error("Autopilot draft not found.");
+    if (
+      teamRun.status !== "planning" ||
+      plan.status !== "draft" ||
+      mission.status !== "awaiting_approval"
+    ) {
       throw new Error("This Autopilot plan has already been approved or is no longer executable.");
     }
     const now = new Date();
@@ -329,6 +382,14 @@ export async function approveAndRunBusinessAutopilot(input: {
       .update(plans)
       .set({ status: "active", updatedAt: now })
       .where(eq(plans.id, input.planId));
+    await db
+      .update(missions)
+      .set({ status: "running", approvedBy: userId, approvedAt: now, updatedAt: now })
+      .where(eq(missions.id, mission.id));
+    await db
+      .update(companies)
+      .set({ status: "building", updatedAt: now })
+      .where(eq(companies.id, mission.companyId!));
     await db
       .update(teamRuns)
       .set({ status: "running", startedAt: now, updatedAt: now })
@@ -377,7 +438,14 @@ export async function approveAndRunBusinessAutopilot(input: {
         .where(eq(workspaces.id, input.workspaceId))
         .limit(1)
     )[0];
-    if (!workspace) throw new Error("Workspace not found.");
+    const mission = (
+      await db
+        .select({ id: missions.id, companyId: missions.companyId })
+        .from(missions)
+        .where(and(eq(missions.planId, input.planId), eq(missions.workspaceId, input.workspaceId)))
+        .limit(1)
+    )[0];
+    if (!workspace || !mission) throw new Error("Workspace mission not found.");
     const allCompleted = completed.size === graph.length && !failed;
     const now = new Date();
     await db
@@ -388,16 +456,27 @@ export async function approveAndRunBusinessAutopilot(input: {
         updatedAt: now,
       })
       .where(eq(teamRuns.id, input.teamRunId));
+    await db
+      .update(missions)
+      .set({ status: allCompleted ? "completed" : "blocked", updatedAt: now })
+      .where(eq(missions.id, mission.id));
+    if (mission.companyId) {
+      await db
+        .update(companies)
+        .set({ status: allCompleted ? "operating" : "planning", updatedAt: now })
+        .where(eq(companies.id, mission.companyId));
+    }
     await db.insert(workspaceEvents).values({
       organizationId: workspace.organizationId,
       workspaceId: input.workspaceId,
       actorType: "system",
       actorId: userId,
       eventType: allCompleted ? "autopilot.initial_build_completed" : "autopilot.blocked",
-      entityType: "team_run",
-      entityId: input.teamRunId,
+      entityType: "mission",
+      entityId: mission.id,
       safePayload: {
         planId: input.planId,
+        teamRunId: input.teamRunId,
         completedTasks: completed.size,
         totalTasks: graph.length,
       },
@@ -417,7 +496,9 @@ export async function businessAutopilotState(workspaceId: string) {
         .orderBy(desc(teamRuns.createdAt))
         .limit(1)
     )[0];
-    if (!latestRun) return { latestRun: null, plan: null, steps: [], members: [] };
+    if (!latestRun) {
+      return { latestRun: null, plan: null, mission: null, company: null, steps: [], members: [] };
+    }
     const planId = latestRun.idempotencyKey.startsWith("business-autopilot:")
       ? latestRun.idempotencyKey.slice("business-autopilot:".length)
       : null;
@@ -429,6 +510,18 @@ export async function businessAutopilotState(workspaceId: string) {
             .where(and(eq(plans.id, planId), eq(plans.workspaceId, workspaceId)))
             .limit(1)
         )[0]
+      : null;
+    const mission = planId
+      ? (
+          await db
+            .select()
+            .from(missions)
+            .where(and(eq(missions.planId, planId), eq(missions.workspaceId, workspaceId)))
+            .limit(1)
+        )[0]
+      : null;
+    const company = mission?.companyId
+      ? (await db.select().from(companies).where(eq(companies.id, mission.companyId)).limit(1))[0]
       : null;
     const steps = plan
       ? await db
@@ -442,6 +535,13 @@ export async function businessAutopilotState(workspaceId: string) {
       .from(teamRunMembers)
       .where(eq(teamRunMembers.teamRunId, latestRun.id))
       .orderBy(asc(teamRunMembers.createdAt));
-    return { latestRun, plan: plan ?? null, steps, members };
+    return {
+      latestRun,
+      plan: plan ?? null,
+      mission: mission ?? null,
+      company: company ?? null,
+      steps,
+      members,
+    };
   });
 }
