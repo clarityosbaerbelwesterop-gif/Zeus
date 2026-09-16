@@ -57,11 +57,13 @@ CREATE TABLE zeus.skills (
   owner text,
   current_version integer NOT NULL DEFAULT 1 CHECK(current_version > 0),
   enabled boolean NOT NULL DEFAULT false,
+  reviewed_by text REFERENCES zeus.users(id),
+  reviewed_at timestamptz,
   created_by text REFERENCES zeus.users(id),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CHECK((source_type = 'built_in' AND workspace_id IS NULL) OR (source_type <> 'built_in' AND workspace_id IS NOT NULL)),
-  CHECK(source_type <> 'generated' OR (trust_level IN ('untrusted','candidate') AND enabled = false))
+  CHECK(source_type <> 'generated' OR enabled=false OR (trust_level IN ('reviewed','trusted') AND reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL))
 );
 
 CREATE TABLE zeus.skill_versions (
