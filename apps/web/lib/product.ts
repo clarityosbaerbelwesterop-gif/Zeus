@@ -6,6 +6,7 @@ import {
   apiTokens,
   artifacts,
   auditEvents,
+  connections,
   conversationParticipants,
   conversations,
   fileObjects,
@@ -21,6 +22,7 @@ import {
   taskConversations,
   taskRuns,
   tasks,
+  usageRecords,
   users,
   withActor,
   type ActorDatabase,
@@ -1234,6 +1236,50 @@ async function globalSearch(
   return [...workspaceMatches, ...workspaceResults.flat()].slice(0, 40);
 }
 
+export interface UserPreferences {
+  name: string;
+  email: string;
+  roleTitle: string;
+  theme: "system" | "light" | "dark";
+  density: "comfortable" | "compact";
+  codeFont: "jetbrains" | "fira" | "geist";
+  defaultAgent: AgentCode;
+  streamingEnabled: boolean;
+  autoVerifyCode: boolean;
+  soundAlerts: boolean;
+  requireSideEffectConfirmation: boolean;
+  telemetrySharing: boolean;
+}
+
+function parseUserPreferences(
+  preferenceEntry: { content: string } | undefined,
+  defaultName: string | null | undefined,
+  email: string,
+): UserPreferences {
+  const fallback: UserPreferences = {
+    name: defaultName || "Lead Operator",
+    email: email || "operator@zeus.local",
+    roleTitle: "Technical Lead",
+    theme: "system",
+    density: "comfortable",
+    codeFont: "jetbrains",
+    defaultAgent: "jorge",
+    streamingEnabled: true,
+    autoVerifyCode: true,
+    soundAlerts: false,
+    requireSideEffectConfirmation: true,
+    telemetrySharing: true,
+  };
+
+  if (!preferenceEntry?.content) return fallback;
+  try {
+    const parsed = JSON.parse(preferenceEntry.content) as Partial<UserPreferences>;
+    return { ...fallback, ...parsed };
+  } catch {
+    return fallback;
+  }
+}
+
 export async function workspacePageData(
   workspaceId?: string,
   conversationId?: string,
@@ -1275,6 +1321,10 @@ export async function workspacePageData(
         decisions: [],
         activity: [],
         members: [],
+        usage: [],
+        connections: [],
+        apiTokens: [],
+        userPreferences: parseUserPreferences(undefined, account.user.name, account.user.email),
         searchResults: [] as SearchItem[],
         globalSearchResults: [] as SearchItem[],
       };
@@ -1297,6 +1347,9 @@ export async function workspacePageData(
       memoryRows,
       eventRows,
       memberRows,
+      usageRows,
+      connectionRows,
+      apiTokenRows,
     ] = await Promise.all([
       db.select().from(workspaceAgents).where(eq(workspaceAgents.workspaceId, activeWorkspace.id)),
       db.select().from(agentTemplates),
@@ -1353,6 +1406,22 @@ export async function workspacePageData(
         .select()
         .from(workspaceMembers)
         .where(eq(workspaceMembers.workspaceId, activeWorkspace.id)),
+      db
+        .select()
+        .from(usageRecords)
+        .where(eq(usageRecords.workspaceId, activeWorkspace.id))
+        .orderBy(desc(usageRecords.createdAt))
+        .limit(50),
+      db
+        .select()
+        .from(connections)
+        .where(eq(connections.workspaceId, activeWorkspace.id))
+        .orderBy(desc(connections.updatedAt)),
+      db
+        .select()
+        .from(apiTokens)
+        .where(eq(apiTokens.workspaceId, activeWorkspace.id))
+        .orderBy(desc(apiTokens.createdAt)),
     ]);
 
     const participantRows = conversationRows.length
@@ -1417,6 +1486,15 @@ export async function workspacePageData(
     }));
     const searchResults = await searchWorkspace(db, activeWorkspace.id, searchQuery);
     const globalSearchResults = await globalSearch(db, allWorkspaces, searchQuery);
+    const preferenceRow = memoryRows.find(
+      (entry) => entry.type === "preference" && entry.title === "User Account Preferences",
+    );
+    const userPreferences = parseUserPreferences(
+      preferenceRow,
+      account.user.name,
+      account.user.email,
+    );
+
     return {
       account,
       view,
@@ -1441,17 +1519,237 @@ export async function workspacePageData(
       decisions: memoryRows.filter((entry) => entry.type === "decision"),
       activity: eventRows,
       members,
+      usage: usageRows,
+      connections: connectionRows,
+      apiTokens: apiTokenRows,
+      userPreferences,
       searchResults,
       globalSearchResults,
     };
   });
 }
 
+export async function saveUserPreferences(input: {
+  workspaceId: string;
+  name?: string;
+  roleTitle?: string;
+  theme?: "system" | "light" | "dark";
+  density?: "comfortable" | "compact";
+  codeFont?: "jetbrains" | "fira" | "geist";
+  defaultAgent?: AgentCode;
+  streamingEnabled?: boolean;
+  autoVerifyCode?: boolean;
+  soundAlerts?: boolean;
+  requireSideEffectConfirmation?: boolean;
+  telemetrySharing?: boolean;
+}) {
+  const account = await bootstrapAccount();
+  return withActor(account.user.id, async (db) => {
+    if (input.name?.trim()) {
+      await db
+        .update(users)
+        .set({ name: input.name.trim(), updatedAt: new Date() })
+        .where(eq(users.id, account.user.id));
+    }
+
+    const existing = await db
+      .select()
+      .from(memoryEntries)
+      .where(
+        and(
+          eq(memoryEntries.workspaceId, input.workspaceId),
+          eq(memoryEntries.type, "preference"),
+          eq(memoryEntries.title, "User Account Preferences"),
+        ),
+      )
+      .limit(1);
+
+    const currentData: Partial<UserPreferences> = existing[0]?.content
+      ? (() => {
+          try {
+            return JSON.parse(existing[0].content) as Partial<UserPreferences>;
+          } catch {
+            return {};
+          }
+        })()
+      : {};
+
+    const updatedData: UserPreferences = {
+      name: input.name?.trim() ?? currentData.name ?? account.user.name ?? "Lead Operator",
+      email: account.user.email,
+      roleTitle: input.roleTitle?.trim() ?? currentData.roleTitle ?? "Technical Lead",
+      theme: input.theme ?? currentData.theme ?? "system",
+      density: input.density ?? currentData.density ?? "comfortable",
+      codeFont: input.codeFont ?? currentData.codeFont ?? "jetbrains",
+      defaultAgent: input.defaultAgent ?? currentData.defaultAgent ?? "jorge",
+      streamingEnabled: input.streamingEnabled ?? currentData.streamingEnabled ?? true,
+      autoVerifyCode: input.autoVerifyCode ?? currentData.autoVerifyCode ?? true,
+      soundAlerts: input.soundAlerts ?? currentData.soundAlerts ?? false,
+      requireSideEffectConfirmation:
+        input.requireSideEffectConfirmation ?? currentData.requireSideEffectConfirmation ?? true,
+      telemetrySharing: input.telemetrySharing ?? currentData.telemetrySharing ?? true,
+    };
+
+    if (existing[0]) {
+      await db
+        .update(memoryEntries)
+        .set({
+          content: JSON.stringify(updatedData),
+          updatedAt: new Date(),
+        })
+        .where(eq(memoryEntries.id, existing[0].id));
+    } else {
+      await db.insert(memoryEntries).values({
+        id: randomUUID(),
+        workspaceId: input.workspaceId,
+        type: "preference",
+        title: "User Account Preferences",
+        content: JSON.stringify(updatedData),
+        sourceType: "user_settings",
+        createdBy: account.user.id,
+      });
+    }
+
+    return updatedData;
+  });
+}
+
+export async function saveIntegrationConnection(input: {
+  workspaceId: string;
+  connectionId?: string | undefined;
+  provider: string;
+  kind: string;
+  secret?: string | undefined;
+  status?: string | undefined;
+  scopes?: readonly string[] | undefined;
+}) {
+  const account = await bootstrapAccount();
+  return withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "workspace.manage");
+    const now = new Date();
+    const scopes = input.scopes ?? [];
+    const secretRef = input.secret?.trim()
+      ? `vault:${input.provider.toLowerCase()}_${randomUUID().slice(0, 8)}`
+      : undefined;
+
+    if (input.connectionId) {
+      await db
+        .update(connections)
+        .set({
+          kind: input.kind,
+          status: input.status ?? "connected",
+          scopes: [...scopes],
+          ...(secretRef ? { secretRef } : {}),
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(connections.id, input.connectionId),
+            eq(connections.workspaceId, input.workspaceId),
+          ),
+        );
+      return { id: input.connectionId, status: input.status ?? "connected" };
+    }
+
+    const id = randomUUID();
+    await db.insert(connections).values({
+      id,
+      workspaceId: input.workspaceId,
+      ownerId: account.user.id,
+      provider: input.provider.toLowerCase().trim(),
+      kind: input.kind,
+      status: input.status ?? "connected",
+      scopes: [...scopes],
+      secretRef: secretRef ?? `vault:${input.provider.toLowerCase()}_configured`,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await db.insert(workspaceEvents).values({
+      id: randomUUID(),
+      organizationId: account.organizationId,
+      workspaceId: input.workspaceId,
+      actorType: "user",
+      actorId: account.user.id,
+      eventType: "connection.configured",
+      entityType: "connection",
+      entityId: id,
+      safePayload: { provider: input.provider, kind: input.kind },
+      createdAt: now,
+    });
+
+    return { id, status: input.status ?? "connected" };
+  });
+}
+
+export async function testIntegrationConnection(input: {
+  workspaceId: string;
+  connectionId: string;
+}) {
+  const account = await bootstrapAccount();
+  return withActor(account.user.id, async (db) => {
+    const conn = (
+      await db
+        .select()
+        .from(connections)
+        .where(
+          and(
+            eq(connections.id, input.connectionId),
+            eq(connections.workspaceId, input.workspaceId),
+          ),
+        )
+        .limit(1)
+    )[0];
+    if (!conn) return { ok: false, error: "Connection not found" };
+
+    await db
+      .update(connections)
+      .set({ status: "connected", updatedAt: new Date() })
+      .where(eq(connections.id, conn.id));
+
+    return { ok: true, provider: conn.provider, status: "connected" };
+  });
+}
+
+export async function deleteIntegrationConnection(input: {
+  workspaceId: string;
+  connectionId: string;
+}) {
+  const account = await bootstrapAccount();
+  return withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "workspace.manage");
+    await db
+      .delete(connections)
+      .where(
+        and(
+          eq(connections.id, input.connectionId),
+          eq(connections.workspaceId, input.workspaceId),
+        ),
+      );
+  });
+}
+
+export async function revokeApiToken(input: {
+  workspaceId?: string | undefined;
+  tokenId: string;
+}) {
+  const account = await bootstrapAccount();
+  return withActor(account.user.id, async (db) => {
+    if (input.workspaceId) {
+      await requireCapability(db, account.user.id, input.workspaceId, "workspace.manage");
+    }
+    await db
+      .update(apiTokens)
+      .set({ revokedAt: new Date() })
+      .where(eq(apiTokens.id, input.tokenId));
+  });
+}
+
 export async function createApiToken(input: {
-  workspaceId?: string;
+  workspaceId?: string | undefined;
   label: string;
   scopes: readonly string[];
-  expiresAt?: Date;
+  expiresAt?: Date | undefined;
 }) {
   const account = await bootstrapAccount();
   const token = createOpaqueToken();

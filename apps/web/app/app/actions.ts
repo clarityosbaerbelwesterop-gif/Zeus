@@ -16,12 +16,18 @@ import {
   addPlanStep,
   archiveMemory,
   archiveWorkspace,
+  createApiToken,
   createArtifact,
   createConversation,
   createMemory,
   createPlan,
   createTask,
   createWorkspace,
+  deleteIntegrationConnection,
+  revokeApiToken,
+  saveIntegrationConnection,
+  saveUserPreferences,
+  testIntegrationConnection,
   toggleWorkspaceAgent,
   updateMemory,
   updateTask,
@@ -274,4 +280,96 @@ export async function approveRepositoryChangeAction(formData: FormData) {
   await approveAndExecuteRepositoryChangeRequest(String(session.user.id), requestId);
   revalidatePath("/app");
   redirect(workspaceLocation(workspaceId, field(formData, "view") || "chat"));
+}
+
+export async function saveUserPreferencesAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  const defaultAgentRaw = field(formData, "defaultAgent");
+  const defaultAgent: AgentCode = agentCodes.has(defaultAgentRaw as AgentCode)
+    ? (defaultAgentRaw as AgentCode)
+    : "jorge";
+
+  await saveUserPreferences({
+    workspaceId,
+    name: field(formData, "name"),
+    roleTitle: field(formData, "roleTitle"),
+    theme: (field(formData, "theme") as "system" | "light" | "dark") || "system",
+    density: (field(formData, "density") as "comfortable" | "compact") || "comfortable",
+    codeFont: (field(formData, "codeFont") as "jetbrains" | "fira" | "geist") || "jetbrains",
+    defaultAgent,
+    streamingEnabled: formData.get("streamingEnabled") === "on" || formData.get("streamingEnabled") === "true",
+    autoVerifyCode: formData.get("autoVerifyCode") === "on" || formData.get("autoVerifyCode") === "true",
+    soundAlerts: formData.get("soundAlerts") === "on" || formData.get("soundAlerts") === "true",
+    requireSideEffectConfirmation:
+      formData.get("requireSideEffectConfirmation") === "on" ||
+      formData.get("requireSideEffectConfirmation") === "true",
+    telemetrySharing:
+      formData.get("telemetrySharing") === "on" || formData.get("telemetrySharing") === "true",
+  });
+  revalidatePath("/app");
+  redirect(workspaceLocation(workspaceId, "settings"));
+}
+
+export async function saveIntegrationConnectionAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  const connectionId = optionalField(formData, "connectionId") ?? undefined;
+  const provider = field(formData, "provider");
+  const kind = field(formData, "kind") || "api_key";
+  const secret = field(formData, "secret");
+  const scopesRaw = field(formData, "scopes");
+  const scopes = scopesRaw ? scopesRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+
+  await saveIntegrationConnection({
+    workspaceId,
+    connectionId,
+    provider,
+    kind,
+    secret: secret || undefined,
+    status: "connected",
+    scopes,
+  });
+  revalidatePath("/app");
+  redirect(workspaceLocation(workspaceId, "settings"));
+}
+
+export async function testIntegrationConnectionAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  const connectionId = field(formData, "connectionId");
+  await testIntegrationConnection({ workspaceId, connectionId });
+  revalidatePath("/app");
+  redirect(workspaceLocation(workspaceId, "settings"));
+}
+
+export async function deleteIntegrationConnectionAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  const connectionId = field(formData, "connectionId");
+  await deleteIntegrationConnection({ workspaceId, connectionId });
+  revalidatePath("/app");
+  redirect(workspaceLocation(workspaceId, "settings"));
+}
+
+export async function createApiTokenAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  const label = field(formData, "label") || "Default Access Token";
+  const scopesRaw = field(formData, "scopes");
+  const scopes = scopesRaw ? scopesRaw.split(",").map((s) => s.trim()).filter(Boolean) : ["workspace.read"];
+  const expiresDays = parseInt(field(formData, "expiresDays") || "90", 10);
+  const expiresAt = new Date(Date.now() + expiresDays * 24 * 60 * 60 * 1000);
+
+  await createApiToken({
+    workspaceId: workspaceId || undefined,
+    label,
+    scopes,
+    expiresAt,
+  });
+  revalidatePath("/app");
+  redirect(workspaceLocation(workspaceId, "settings"));
+}
+
+export async function revokeApiTokenAction(formData: FormData) {
+  const workspaceId = field(formData, "workspaceId");
+  const tokenId = field(formData, "tokenId");
+  await revokeApiToken({ workspaceId, tokenId });
+  revalidatePath("/app");
+  redirect(workspaceLocation(workspaceId, "settings"));
 }

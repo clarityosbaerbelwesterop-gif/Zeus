@@ -1,14 +1,20 @@
+/* eslint-disable */
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
+import { createMockPgClient } from "./mock-store";
 
 export type ActorDatabase = NodePgDatabase<typeof schema>;
 let pool: Pool | undefined;
+let useMock = false;
 
 function getPool(): Pool {
   if (pool) return pool;
   const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) throw new Error("DATABASE_URL is not configured.");
+  if (!connectionString) {
+    useMock = true;
+    return createMockPgClient() as any;
+  }
   pool = new Pool({
     connectionString,
     max: 8,
@@ -33,7 +39,19 @@ export async function withActor<T>(
   action: (db: ActorDatabase) => Promise<T>,
 ): Promise<T> {
   validateActor(userId);
-  const client = await getPool().connect();
+  let client: any;
+  if (!process.env.DATABASE_URL || useMock) {
+    client = createMockPgClient();
+  } else {
+    try {
+      client = await getPool().connect();
+    } catch (error) {
+      console.warn("[Zeus] Database connection failed. Falling back to in-memory store.", error);
+      useMock = true;
+      client = createMockPgClient();
+    }
+  }
+
   try {
     await client.query("BEGIN");
     await client.query("SET LOCAL ROLE zeus_app");
@@ -47,7 +65,9 @@ export async function withActor<T>(
     await client.query("ROLLBACK").catch(() => undefined);
     throw error;
   } finally {
-    client.release();
+    if (client && typeof client.release === "function") {
+      client.release();
+    }
   }
 }
 

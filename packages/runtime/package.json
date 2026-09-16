@@ -19,8 +19,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@zeus/agents": "workspace:*",
-    "@zeus/shared": "workspace:*"
+    "@zeus/agents": "*",
+    "@zeus/shared": "*"
   },
   "devDependencies": {
     "typescript": "^5.9.2"

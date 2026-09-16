@@ -352,7 +352,7 @@ export const connections = zeus.table("connections", {
   provider: text("provider").notNull(),
   kind: text("kind").notNull(),
   status: text("status").notNull(),
-  scopes: jsonb("scopes").notNull().default([]),
+  scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
   secretRef: text("secret_ref"),
   ...timestamps,
 });
@@ -367,7 +367,7 @@ export const apiTokens = zeus.table("api_tokens", {
   label: text("label").notNull(),
   prefix: text("prefix").notNull(),
   digest: text("digest").notNull(),
-  scopes: jsonb("scopes").notNull().default([]),
+  scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   expiresAt: timestamp("expires_at", { withTimezone: true }),

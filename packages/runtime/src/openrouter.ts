@@ -301,13 +301,25 @@ export function createOpenRouterProviderFromEnv(
 
   const apiKey = environment.OPENROUTER_API_KEY?.trim();
   const model = environment.ZEUS_DEFAULT_MODEL?.trim();
-  if (!apiKey || !model) return unconfiguredProvider;
-  return createOpenRouterProvider({
-    apiKey,
-    model,
-    ...(environment.ZEUS_APP_URL ? { appUrl: environment.ZEUS_APP_URL } : {}),
-    appName: "Zeus",
-  });
+  if (apiKey && model) {
+    return createOpenRouterProvider({
+      apiKey,
+      model,
+      ...(environment.ZEUS_APP_URL ? { appUrl: environment.ZEUS_APP_URL } : {}),
+      appName: "Zeus",
+    });
+  }
+
+  if (environment.GEMINI_API_KEY?.trim()) {
+    return createOpenRouterProvider({
+      apiKey: environment.GEMINI_API_KEY.trim(),
+      model: environment.ZEUS_DEFAULT_MODEL?.trim() || "gemini-3.6-flash",
+      endpoint: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      appName: "Zeus",
+    });
+  }
+
+  return unconfiguredProvider;
 }
 
 export function assertOpenRouterConfigured(provider: ModelProvider): void {

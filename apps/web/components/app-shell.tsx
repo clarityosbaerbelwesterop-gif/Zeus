@@ -28,7 +28,7 @@ const viewLabels: Record<string, string> = {
   memory: "Memory",
   activity: "Activity",
   search: "Search",
-  settings: "Settings",
+  settings: "Settings & Integrations",
 };
 
 export function AppShell({ data }: { data: WorkspacePageData }) {
@@ -57,7 +57,11 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
   const role = data.membershipRole;
   const canWrite = Boolean(role && can(role, "task.write"));
   const canManage = Boolean(role && can(role, "workspace.manage"));
-  const providerReady = Boolean(process.env.UNOROUTER_API_KEY_1 || process.env.OPENROUTER_API_KEY);
+  const providerReady = Boolean(
+    process.env.UNOROUTER_API_KEY_1 ||
+      process.env.OPENROUTER_API_KEY ||
+      process.env.GEMINI_API_KEY,
+  );
 
   return (
     <main className="workspace-grid grid min-h-screen grid-cols-[252px_minmax(0,1fr)_300px] bg-[var(--paper)]">
@@ -157,6 +161,11 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
             href={workspaceHref(workspace.id, "activity")}
             active={selectedView === "activity"}
             label="Activity"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "settings")}
+            active={selectedView === "settings"}
+            label="Settings & Keys"
           />
         </nav>
 

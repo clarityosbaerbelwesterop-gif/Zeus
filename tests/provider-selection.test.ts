@@ -22,4 +22,13 @@ describe("canonical provider selection", () => {
     expect(provider.configured).toBe(true);
     expect(provider.id).toBe("openrouter");
   });
+
+  it("uses Gemini OpenAI-compatible adapter when GEMINI_API_KEY is configured", () => {
+    const provider = createOpenRouterProviderFromEnv({
+      GEMINI_API_KEY: "gemini-key",
+    });
+
+    expect(provider.configured).toBe(true);
+    expect(provider.id).toBe("openrouter");
+  });
 });
