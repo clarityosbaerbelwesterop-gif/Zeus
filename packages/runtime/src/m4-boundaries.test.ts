@@ -12,14 +12,15 @@ import {
 
 describe("M4 Kai execution boundaries", () => {
   it("accepts any valid owner/repository while isolating work to zeus feature branches", () => {
-    expect(validateRepositoryFullName("openai/openai-node")).toBe("openai/openai-node");
-    expect(validateRepositoryFullName("customer/private-saas")).toBe("customer/private-saas");
-    expect(validateRepositoryFullName("enterprise/large-monorepo")).toBe(
+    const repositories = [
+      "openai/openai-node",
+      "customer/private-saas",
       "enterprise/large-monorepo",
-    );
-    expect(validateRepositoryFullName("clarityosbaerbelwesterop-gif/Zeus")).toBe(
       "clarityosbaerbelwesterop-gif/Zeus",
-    );
+    ];
+    for (const repository of repositories) {
+      expect(validateRepositoryFullName(repository)).toBe(repository);
+    }
     expect(validateBaseSha("a".repeat(40))).toBe("a".repeat(40));
     expect(validateFeatureBranch("zeus/m4-safe-work")).toBe("zeus/m4-safe-work");
     expect(validateFeatureBranch("zeus/kai/customer-task-42")).toBe(
@@ -31,9 +32,14 @@ describe("M4 Kai execution boundaries", () => {
   });
 
   it("rejects malformed repository identities instead of hard-coding a Zeus repository", () => {
-    expect(() => validateRepositoryFullName("Zeus")).toThrow();
-    expect(() => validateRepositoryFullName("owner/repo/extra")).toThrow();
-    expect(() => validateRepositoryFullName("https://github.com/owner/repo")).toThrow();
+    const malformed = [
+      "Zeus",
+      "owner/repo/extra",
+      "https://github.com/owner/repo",
+    ];
+    for (const repository of malformed) {
+      expect(() => validateRepositoryFullName(repository)).toThrow();
+    }
   });
 
   it("contains repository paths", () => {
