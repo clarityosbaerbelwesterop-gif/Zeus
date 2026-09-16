@@ -1,5 +1,5 @@
 -- Repair PRODUCT M5 database authority after 0007.
--- 0007 used zeus.actor_id, while the canonical app transaction sets zeus.user_id,
+-- 0007 used a legacy actor setting, while the canonical app transaction sets zeus.user_id,
 -- and it omitted grants for its newly-created tables. Keep 0007 immutable and repair forward.
 BEGIN;
 
