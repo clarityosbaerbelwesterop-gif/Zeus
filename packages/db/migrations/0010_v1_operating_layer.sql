@@ -81,3 +81,12 @@ CREATE TABLE zeus.skill_versions (
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE(skill_id,version)
 );
+
+CREATE INDEX companies_workspace_idx ON zeus.companies(workspace_id,created_at DESC);
+CREATE INDEX missions_workspace_idx ON zeus.missions(workspace_id,created_at DESC);
+CREATE INDEX missions_company_idx ON zeus.missions(company_id,created_at DESC);
+CREATE UNIQUE INDEX skills_builtin_slug_unique ON zeus.skills(slug) WHERE workspace_id IS NULL;
+CREATE UNIQUE INDEX skills_workspace_slug_unique ON zeus.skills(workspace_id,slug) WHERE workspace_id IS NOT NULL;
+CREATE INDEX skill_versions_skill_idx ON zeus.skill_versions(skill_id,version DESC);
+
+COMMIT;
