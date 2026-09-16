@@ -15,7 +15,11 @@ import {
   workspaceMembers,
   workspaces,
 } from "@zeus/db";
-import { readyTeamTasks, validateTeamTaskGraph, type TeamTask } from "@zeus/runtime/team-automation";
+import {
+  readyTeamTasks,
+  validateTeamTaskGraph,
+  type TeamTask,
+} from "@zeus/runtime/team-automation";
 import { shortTitleSchema, workspaceObjectiveSchema } from "@zeus/shared";
 import { can, isWorkspaceRole } from "@zeus/workspace";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
@@ -85,7 +89,9 @@ async function requireAutopilotAccess(userId: string, workspaceId: string): Prom
       await db
         .select({ role: workspaceMembers.role })
         .from(workspaceMembers)
-        .where(and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)))
+        .where(
+          and(eq(workspaceMembers.workspaceId, workspaceId), eq(workspaceMembers.userId, userId)),
+        )
         .limit(1)
     )[0];
     if (
@@ -150,7 +156,11 @@ export async function draftBusinessAutopilot(input: {
         id: taskIds.get(template.key)!,
         workspaceId: input.workspaceId,
         title: template.title,
-        description: `${template.description}\n\nBusiness: ${businessName}\nObjective: ${objective}`.slice(0, 12_000),
+        description:
+          `${template.description}\n\nBusiness: ${businessName}\nObjective: ${objective}`.slice(
+            0,
+            12_000,
+          ),
         status: "backlog",
         priority: template.agent === "simon" ? "high" : "medium",
         assignedAgent: template.agent,
@@ -268,7 +278,8 @@ async function markRunResult(
       runId,
       taskId: task.id,
       agentCode: task.agent,
-      role: task.agent === "jorge" ? "coordinator" : task.agent === "simon" ? "reviewer" : "specialist",
+      role:
+        task.agent === "jorge" ? "coordinator" : task.agent === "simon" ? "reviewer" : "specialist",
     });
     if (run?.status !== "completed") return false;
     const now = new Date();
@@ -314,7 +325,10 @@ export async function approveAndRunBusinessAutopilot(input: {
       throw new Error("This Autopilot plan has already been approved or is no longer executable.");
     }
     const now = new Date();
-    await db.update(plans).set({ status: "active", updatedAt: now }).where(eq(plans.id, input.planId));
+    await db
+      .update(plans)
+      .set({ status: "active", updatedAt: now })
+      .where(eq(plans.id, input.planId));
     await db
       .update(teamRuns)
       .set({ status: "running", startedAt: now, updatedAt: now })
@@ -382,7 +396,11 @@ export async function approveAndRunBusinessAutopilot(input: {
       eventType: allCompleted ? "autopilot.initial_build_completed" : "autopilot.blocked",
       entityType: "team_run",
       entityId: input.teamRunId,
-      safePayload: { planId: input.planId, completedTasks: completed.size, totalTasks: graph.length },
+      safePayload: {
+        planId: input.planId,
+        completedTasks: completed.size,
+        totalTasks: graph.length,
+      },
     });
   });
 }

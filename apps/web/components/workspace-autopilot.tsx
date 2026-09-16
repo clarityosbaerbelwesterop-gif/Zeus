@@ -56,9 +56,9 @@ export async function AutopilotView({
           One plan approval. Five agents execute the business.
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-          Jorge coordinates. Kai builds. Lora designs. Sara prepares commercial and support operations.
-          Simon verifies quality and security. Actions remain bounded by the workspace permissions and
-          connected apps you have authorized.
+          Jorge coordinates. Kai builds. Lora designs. Sara prepares commercial and support
+          operations. Simon verifies quality and security. Actions remain bounded by the workspace
+          permissions and connected apps you have authorized.
         </p>
       </header>
 
@@ -82,7 +82,9 @@ export async function AutopilotView({
               />
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium">What should the business achieve?</span>
+              <span className="mb-1.5 block text-xs font-medium">
+                What should the business achieve?
+              </span>
               <textarea
                 required
                 maxLength={12000}
@@ -104,9 +106,13 @@ export async function AutopilotView({
         <section className="rounded-[24px] border border-[var(--line)] bg-white/55 p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">Current run</p>
+              <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+                Current run
+              </p>
               <h2 className="mt-1 text-xl font-semibold">{plan.title}</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">{plan.objective}</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+                {plan.objective}
+              </p>
             </div>
             <span className="rounded-full border border-[var(--line)] bg-white px-3 py-1.5 text-xs font-medium">
               {statusCopy[run.status] ?? run.status}
@@ -151,8 +157,9 @@ export async function AutopilotView({
             <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[#f2eee5] p-4">
               <p className="text-sm font-semibold">One approval required</p>
               <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-                Approving starts the dependency-aware agent run. Routine work can continue within the
-                granted tool permissions; higher-risk external actions still use Zeus approval boundaries.
+                Approving starts the dependency-aware agent run. Routine work can continue within
+                the granted tool permissions; higher-risk external actions still use Zeus approval
+                boundaries.
               </p>
               <form action={approveBusinessAutopilotAction} className="mt-4">
                 <input type="hidden" name="workspaceId" value={workspaceId} />
@@ -167,14 +174,16 @@ export async function AutopilotView({
 
           {run.status === "blocked" ? (
             <p className="mt-5 rounded-xl border border-[var(--line)] bg-white/65 p-3 text-sm text-[var(--muted)]">
-              Zeus stopped because one or more agent runs did not reach verified completion. The existing
-              run evidence remains available in the workspace instead of silently claiming success.
+              Zeus stopped because one or more agent runs did not reach verified completion. The
+              existing run evidence remains available in the workspace instead of silently claiming
+              success.
             </p>
           ) : null}
 
           {state.members.length ? (
             <p className="mt-5 text-xs text-[var(--muted)]">
-              {state.members.length} durable agent run{state.members.length === 1 ? "" : "s"} linked to this TeamRun.
+              {state.members.length} durable agent run{state.members.length === 1 ? "" : "s"} linked
+              to this TeamRun.
             </p>
           ) : null}
         </section>

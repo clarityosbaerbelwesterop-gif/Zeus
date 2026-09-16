@@ -9,8 +9,7 @@ const input = {
 describe("UnoRouter provider", () => {
   it("uses the documented endpoint and records only the serving credential slot", async () => {
     const fetchImpl = vi.fn<typeof fetch>((url, init) => {
-      const requestUrl =
-        typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+      const requestUrl = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
       expect(requestUrl).toBe("https://api.unorouter.com/v1/chat/completions");
       expect(new Headers(init?.headers).get("authorization")).toBe("Bearer primary-secret");
       return Promise.resolve(

@@ -2,10 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import {
-  approveAndRunBusinessAutopilot,
-  draftBusinessAutopilot,
-} from "@/lib/business-autopilot";
+import { approveAndRunBusinessAutopilot, draftBusinessAutopilot } from "@/lib/business-autopilot";
 
 function field(formData: FormData, key: string): string {
   const value = formData.get(key);
