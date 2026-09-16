@@ -16,8 +16,9 @@ jobs:
         with:
           ref: feat/wire-runtime-budget-ledger
       - name: Patch canonical runtime and store
-        shell: python
+        shell: bash
         run: |
+          python3 <<'PY'
           from pathlib import Path
 
           engine = Path("packages/runtime/src/engine.ts")
@@ -80,6 +81,7 @@ jobs:
 '''
           text = text[:start] + replacement + text[end:]
           runtime.write_text(text)
+          PY
       - uses: pnpm/action-setup@v4
         with:
           version: 10.17.1
