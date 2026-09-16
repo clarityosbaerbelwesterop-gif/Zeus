@@ -15,73 +15,6 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: feat/wire-runtime-budget-ledger
-      - name: Patch canonical runtime and store
-        shell: bash
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-
-          engine = Path("packages/runtime/src/engine.ts")
-          text = engine.read_text()
-          old = 'import type { AssembledContext, SafeContextTrace } from "./context";\nimport {\n'
-          new = 'import type { AssembledContext, SafeContextTrace } from "./context";\nimport {\n  assertRuntimeBudgetWithinPolicy,\n  assertRuntimeUsageTelemetry,\n  type RuntimeUsageTotals,\n} from "./budget";\nimport {\n'
-          assert text.count(old) == 1, "engine import anchor changed"
-          text = text.replace(old, new, 1)
-          old = '  recordUsage(run: RuntimeRun, provider: string, model: string, usage?: ModelUsage): Promise<void>;\n'
-          new = '  recordUsage(\n    run: RuntimeRun,\n    provider: string,\n    model: string,\n    usage?: ModelUsage,\n  ): Promise<RuntimeUsageTotals>;\n'
-          assert text.count(old) == 1, "recordUsage interface anchor changed"
-          text = text.replace(old, new, 1)
-          old = '        await dependencies.store.recordUsage(current, output.provider, output.model, output.usage);\n        await dependencies.store.updateStep(modelStep.id, "completed", {\n'
-          new = '        assertRuntimeUsageTelemetry(output.usage, policy);\n        const usageTotals = await dependencies.store.recordUsage(\n          current,\n          output.provider,\n          output.model,\n          output.usage,\n        );\n        assertRuntimeBudgetWithinPolicy(usageTotals, policy);\n        await dependencies.store.updateStep(modelStep.id, "completed", {\n'
-          assert text.count(old) == 1, "engine usage anchor changed"
-          text = text.replace(old, new, 1)
-          engine.write_text(text)
-
-          runtime = Path("apps/web/lib/agent-runtime.ts")
-          text = runtime.read_text()
-          start = text.index("    async recordUsage(run, provider, model, usage?: ModelUsage) {")
-          end = text.index("    async recordVerification(run, evidence: VerificationEvidence) {", start)
-          replacement = '''    async recordUsage(run, provider, model, usage?: ModelUsage) {
-      return withActor(actorId, async (db) => {
-        await db.insert(usageRecords).values({
-          organizationId: run.organizationId,
-          workspaceId: run.workspaceId,
-          runId: run.id,
-          agentCode: run.agent,
-          provider: provider.slice(0, 120),
-          model: model.slice(0, 240),
-          inputTokens: usage?.inputTokens ?? null,
-          outputTokens: usage?.outputTokens ?? null,
-          cachedTokens: usage?.cachedTokens ?? null,
-          estimatedCost: usage?.estimatedCost === undefined ? null : usage.estimatedCost.toFixed(8),
-          latencyMs: usage?.latencyMs ?? null,
-        });
-        const totals = (
-          await db
-            .select({
-              modelCalls: count(),
-              inputTokens: sql<string>`coalesce(sum(${usageRecords.inputTokens}), 0)::text`,
-              outputTokens: sql<string>`coalesce(sum(${usageRecords.outputTokens}), 0)::text`,
-              cachedTokens: sql<string>`coalesce(sum(${usageRecords.cachedTokens}), 0)::text`,
-              estimatedCost: sql<string>`coalesce(sum(${usageRecords.estimatedCost}), 0)::text`,
-            })
-            .from(usageRecords)
-            .where(eq(usageRecords.runId, run.id))
-            .limit(1)
-        )[0];
-        return {
-          modelCalls: Number(totals?.modelCalls ?? 0),
-          inputTokens: Number(totals?.inputTokens ?? 0),
-          outputTokens: Number(totals?.outputTokens ?? 0),
-          cachedTokens: Number(totals?.cachedTokens ?? 0),
-          estimatedCost: Number(totals?.estimatedCost ?? 0),
-        };
-      });
-    },
-'''
-          text = text[:start] + replacement + text[end:]
-          runtime.write_text(text)
-          PY
       - uses: pnpm/action-setup@v4
         with:
           version: 10.17.1
@@ -90,6 +23,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - run: node scripts/wire-runtime-budget.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:write
       - name: Commit wiring
