@@ -42,7 +42,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --prod --audit-level=high
-      - run: pnpm format
+      - name: Show formatter repair diff
+        run: |
+          pnpm exec prettier --write docs/KAI_REPOSITORY_SCOPE.md docs/V1_SOURCE_MIGRATION_MATRIX.md packages/runtime/src/m4-boundaries.test.ts
+          git diff -- docs/KAI_REPOSITORY_SCOPE.md docs/V1_SOURCE_MIGRATION_MATRIX.md packages/runtime/src/m4-boundaries.test.ts
+          exit 1
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
