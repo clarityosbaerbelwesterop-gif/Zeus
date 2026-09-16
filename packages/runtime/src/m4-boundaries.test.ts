@@ -11,12 +11,29 @@ import {
 } from "./m4-boundaries";
 
 describe("M4 Kai execution boundaries", () => {
-  it("pins repositories and zeus feature branches", () => {
-    expect(validateRepositoryFullName("openai/openai-node")).toBe("openai/openai-node");
+  it("accepts any valid owner/repository while isolating work to zeus feature branches", () => {
+    const repositories = [
+      "openai/openai-node",
+      "customer/private-saas",
+      "enterprise/large-monorepo",
+      "clarityosbaerbelwesterop-gif/Zeus",
+    ];
+    for (const repository of repositories) {
+      expect(validateRepositoryFullName(repository)).toBe(repository);
+    }
     expect(validateBaseSha("a".repeat(40))).toBe("a".repeat(40));
     expect(validateFeatureBranch("zeus/m4-safe-work")).toBe("zeus/m4-safe-work");
+    expect(validateFeatureBranch("zeus/kai/customer-task-42")).toBe("zeus/kai/customer-task-42");
     expect(() => validateFeatureBranch("main")).toThrow();
+    expect(() => validateFeatureBranch("production")).toThrow();
     expect(() => validateBaseSha("main")).toThrow();
+  });
+
+  it("rejects malformed repository identities instead of hard-coding a Zeus repository", () => {
+    const malformed = ["Zeus", "owner/repo/extra", "https://github.com/owner/repo"];
+    for (const repository of malformed) {
+      expect(() => validateRepositoryFullName(repository)).toThrow();
+    }
   });
 
   it("contains repository paths", () => {
