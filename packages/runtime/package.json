@@ -13,7 +13,8 @@
     "./unorouter": "./src/unorouter.ts",
     "./team-automation": "./src/team-automation.ts",
     "./m4": "./src/m4-boundaries.ts",
-    "./m5": "./src/m5-connected-apps.ts"
+    "./m5": "./src/m5-connected-apps.ts",
+    "./v1": "./src/v1-control.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
