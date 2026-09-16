@@ -3,15 +3,9 @@ import { conversations, organizations, plans, users, workspaces, zeus } from "./
 
 export const companies = zeus.table("companies", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id, { onDelete: "cascade" }),
-  workspaceId: uuid("workspace_id")
-    .notNull()
-    .references(() => workspaces.id, { onDelete: "cascade" }),
-  createdBy: text("created_by")
-    .notNull()
-    .references(() => users.id),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  createdBy: text("created_by").notNull().references(() => users.id),
   name: text("name").notNull(),
   mission: text("mission").notNull(),
   description: text("description").notNull().default(""),
@@ -30,20 +24,12 @@ export const companies = zeus.table("companies", {
 
 export const missions = zeus.table("missions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id, { onDelete: "cascade" }),
-  workspaceId: uuid("workspace_id")
-    .notNull()
-    .references(() => workspaces.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
-  conversationId: uuid("conversation_id").references(() => conversations.id, {
-    onDelete: "set null",
-  }),
+  conversationId: uuid("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
   planId: uuid("plan_id").references(() => plans.id, { onDelete: "set null" }),
-  createdBy: text("created_by")
-    .notNull()
-    .references(() => users.id),
+  createdBy: text("created_by").notNull().references(() => users.id),
   objective: text("objective").notNull(),
   status: text("status").notNull().default("draft"),
   planSnapshot: jsonb("plan_snapshot").notNull().default({}),
@@ -70,6 +56,8 @@ export const skills = zeus.table("skills", {
   owner: text("owner"),
   currentVersion: integer("current_version").notNull().default(1),
   enabled: boolean("enabled").notNull().default(false),
+  reviewedBy: text("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   createdBy: text("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -77,9 +65,7 @@ export const skills = zeus.table("skills", {
 
 export const skillVersions = zeus.table("skill_versions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  skillId: uuid("skill_id")
-    .notNull()
-    .references(() => skills.id, { onDelete: "cascade" }),
+  skillId: uuid("skill_id").notNull().references(() => skills.id, { onDelete: "cascade" }),
   version: integer("version").notNull(),
   triggerMetadata: jsonb("trigger_metadata").notNull().default({}),
   requiredTools: jsonb("required_tools").notNull().default([]),
