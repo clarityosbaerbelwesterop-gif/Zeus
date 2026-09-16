@@ -88,13 +88,7 @@ export const AGENT_TEMPLATES: readonly AgentTemplate[] = Object.freeze([
 ]);
 
 export type AgentContextCategory =
-  | "request"
-  | "policy"
-  | "task"
-  | "workspace"
-  | "memory"
-  | "conversation"
-  | "artifacts";
+  "request" | "policy" | "task" | "workspace" | "memory" | "conversation" | "artifacts";
 export type AgentPermissionMode = "read_only" | "supervised" | "autonomous";
 
 export interface AgentCompletionRequirement {
