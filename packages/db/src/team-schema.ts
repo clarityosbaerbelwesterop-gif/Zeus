@@ -14,7 +14,7 @@ export const teamRuns = zeus.table("team_runs", {
   status: text("status").notNull(),
   coordinatorAgent: text("coordinator_agent")
     .notNull()
-    .default("jorge")
+    .default("kai")
     .references(() => agentTemplates.code),
   createdBy: text("created_by")
     .notNull()
