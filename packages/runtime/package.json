@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./budget": "./src/budget.ts",
+    "./checkpoint": "./src/checkpoint.ts",
     "./context": "./src/context.ts",
     "./engine": "./src/engine.ts",
     "./openrouter": "./src/openrouter.ts",
