@@ -1,11 +1,15 @@
 # ZEUS V1 source migration matrix
 
-This file is the authority for donor capability consolidation. Zeus remains the only product/runtime authority. Donor repositories remain source/legacy systems and are not vendored wholesale.
+This file is the authority for donor capability consolidation. Zeus remains the
+only product/runtime authority. Donor repositories remain source/legacy systems
+and are not vendored wholesale.
 
-Status vocabulary: **KEEP ZEUS**, **PORT**, **ADAPT**, **REWRITE**, **REFERENCE ONLY**, **REJECT**.
+Status vocabulary: **KEEP ZEUS**, **PORT**, **ADAPT**, **REWRITE**,
+**REFERENCE ONLY**, **REJECT**.
 
 ## Source snapshots reviewed
 
+<!-- prettier-ignore -->
 | Source | Snapshot | License / treatment |
 |---|---|---|
 | Zeus | `9549d84e3c5c1444ed4b6bed34023ef6e4ae914a` at start of this pass | Canonical product |
@@ -16,6 +20,7 @@ Status vocabulary: **KEEP ZEUS**, **PORT**, **ADAPT**, **REWRITE**, **REFERENCE 
 
 ## Capability decisions
 
+<!-- prettier-ignore -->
 | Capability | Source path / evidence | Decision | Zeus authority / destination | Security + test requirement | Migration status |
 |---|---|---|---|---|---|
 | Core Run / RunStep execution | Zeus runtime + DB migrations | **KEEP ZEUS** | `packages/runtime`, `packages/db`, web run APIs | deterministic state transitions; persisted steps; retry/cancel tests | Active |
@@ -42,10 +47,17 @@ Status vocabulary: **KEEP ZEUS**, **PORT**, **ADAPT**, **REWRITE**, **REFERENCE 
 
 ## Non-negotiable consolidation rules
 
-1. One canonical authority per capability; Zeus wins unless a documented defect requires migration.
+1. One canonical authority per capability; Zeus wins unless a documented defect
+   requires migration.
 2. Donor code is never copied wholesale.
-3. Hermes substantial code may only be copied after preserving MIT notices in `THIRD_PARTY_NOTICES.md`; conceptual reimplementation is recorded as such.
-4. Proprietary competitor implementations are never copied; only publicly observable product behavior may inform independent Zeus UX.
-5. A donor capability is not considered migrated until tests and the relevant runtime/security acceptance pass.
-6. Legacy repositories remain intact until Zeus acceptance is complete; they are not parallel production authorities.
-7. Every future imported subsystem must add a row with source path, source commit, license, Zeus destination, architectural reason, security review, tests, and migration status.
+3. Hermes substantial code may only be copied after preserving MIT notices in
+   `THIRD_PARTY_NOTICES.md`; conceptual reimplementation is recorded as such.
+4. Proprietary competitor implementations are never copied; only publicly
+   observable product behavior may inform independent Zeus UX.
+5. A donor capability is not considered migrated until tests and the relevant
+   runtime/security acceptance pass.
+6. Legacy repositories remain intact until Zeus acceptance is complete; they are
+   not parallel production authorities.
+7. Every future imported subsystem must add a row with source path, source
+   commit, license, Zeus destination, architectural reason, security review,
+   tests, and migration status.
