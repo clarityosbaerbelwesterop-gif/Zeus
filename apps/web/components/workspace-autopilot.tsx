@@ -56,9 +56,9 @@ export async function AutopilotView({
           One plan approval. Five agents execute the business.
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-          Jorge coordinates. Kai builds. Lora designs. Sara prepares commercial and support
-          operations. Simon verifies quality and security. Actions remain bounded by the workspace
-          permissions and connected apps you have authorized.
+          Kai coordinates. Lora engineers. Jorge owns product and design. Sara prepares growth,
+          sales, support and operations. Simon researches and verifies quality and security. Actions
+          remain bounded by the workspace permissions and connected apps you have authorized.
         </p>
       </header>
 
@@ -66,8 +66,8 @@ export async function AutopilotView({
         <section className="rounded-[24px] border border-[var(--line)] bg-white/55 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">Start an autonomous business build</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            Zeus drafts a durable five-agent execution graph first. Nothing starts until you approve
-            that plan once.
+            Zeus creates durable Company, Mission, Plan and Task state first. Nothing starts until
+            you approve that plan once.
           </p>
           <form action={draftBusinessAutopilotAction} className="mt-5 space-y-4">
             <input type="hidden" name="workspaceId" value={workspaceId} />
@@ -107,7 +107,7 @@ export async function AutopilotView({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
-                Current run
+                {state.company?.name ?? "Current company mission"}
               </p>
               <h2 className="mt-1 text-xl font-semibold">{plan.title}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
@@ -157,9 +157,9 @@ export async function AutopilotView({
             <div className="mt-6 rounded-2xl border border-[var(--line)] bg-[#f2eee5] p-4">
               <p className="text-sm font-semibold">One approval required</p>
               <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
-                Approving starts the dependency-aware agent run. Routine work can continue within
-                the granted tool permissions; higher-risk external actions still use Zeus approval
-                boundaries.
+                Approving starts this persisted mission and its dependency-aware team run. Routine
+                work can continue within granted tool permissions; higher-risk external actions still
+                require their own explicit approval.
               </p>
               <form action={approveBusinessAutopilotAction} className="mt-4">
                 <input type="hidden" name="workspaceId" value={workspaceId} />
