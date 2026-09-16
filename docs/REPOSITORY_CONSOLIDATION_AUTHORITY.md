@@ -11,12 +11,12 @@ archived or deleted until the inventory is complete and the adopted capability h
 
 ## Audited source baselines
 
-| Repository | Audited `main` | Role in consolidation |
-| --- | --- | --- |
-| `clarityosbaerbelwesterop-gif/Zeus` | `24a763d738c09d7d6ee4a40ac9119af5795d31aa` | Canonical product, database/auth/runtime/deployment/UI authority |
-| `clarityosbaerbelwesterop-gif/Odin-Agent-` | `62004f27ae542803ca51f59af66f60ef6aa19f3b` | Runtime durability, mission semantics, recovery, verification and efficiency source |
-| `clarityosbaerbelwesterop-gif/Build-your-Buissness` | `14c44e5ac99a00a44f115f17b8cade940aec6940` | Business-plan/order UX, business lifecycle and autonomous-operation source |
-| `clarityosbaerbelwesterop-gif/swarm-compute-protocol-` | `ab2db73f36adff7ceea6130855a990d8e652720e` | Governance, policy, connector and defensive security source |
+| Repository                                             | Audited `main`                             | Role in consolidation                                                               |
+| ------------------------------------------------------ | ------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `clarityosbaerbelwesterop-gif/Zeus`                    | `24a763d738c09d7d6ee4a40ac9119af5795d31aa` | Canonical product, database/auth/runtime/deployment/UI authority                    |
+| `clarityosbaerbelwesterop-gif/Odin-Agent-`             | `62004f27ae542803ca51f59af66f60ef6aa19f3b` | Runtime durability, mission semantics, recovery, verification and efficiency source |
+| `clarityosbaerbelwesterop-gif/Build-your-Buissness`    | `14c44e5ac99a00a44f115f17b8cade940aec6940` | Business-plan/order UX, business lifecycle and autonomous-operation source          |
+| `clarityosbaerbelwesterop-gif/swarm-compute-protocol-` | `ab2db73f36adff7ceea6130855a990d8e652720e` | Governance, policy, connector and defensive security source                         |
 
 ## Non-negotiable single authorities
 
@@ -37,20 +37,20 @@ must not be copied in wholesale.
 
 ## Consolidation matrix
 
-| Capability | Zeus current authority | Strong source | Decision |
-| --- | --- | --- | --- |
-| Run state/tool loop | `packages/runtime/src/engine.ts` | Odin mission runtime | KEEP_ZEUS, port stronger invariants only |
-| Runtime usage limits | `RuntimePolicy` exists; cumulative telemetry enforcement was missing | Odin budget counters | ADOPT into Zeus runtime guardrails |
-| Long-run recovery checkpoint integrity | no dedicated minimal integrity helper | Odin `src/mission/checkpoint.ts` | ADOPT with Zeus-safe minimal state |
-| DAG/team coordination | `team-automation.ts` | Odin mission DAG, BYB work planning | KEEP_ZEUS, compare semantics before extending |
-| Verification/repair | runtime verification callback plus M4 completion evidence | Odin evidence/repair loop | EXTEND_ZEUS in a later isolated slice |
-| Model/provider boundary | OpenRouter/UNOROUTER adapters | Odin provider abstractions | KEEP_ZEUS provider authority; port only missing hardening |
-| Business order/product flow | Zeus tasks/plans/TeamRun | BYB validated order planner | ADAPT product semantics, never duplicate persistence |
-| Business lifecycle/worker leases | Zeus runtime/team automation | BYB | INVENTORY then EXTEND Zeus models/runtime |
-| Governance identity/policy | Zeus auth/security/runtime boundaries | SCP | ADAPT policies onto Zeus actor/org identities |
-| Connector governance | Zeus MCP/connected-app boundary | SCP | ADAPT missing checks; no duplicate vault or connector DB |
-| Source local JSON/state ledgers | stronger Zeus DB/RLS exists | Odin/BYB/SCP legacy/prototypes | REJECT |
-| Source Vercel/Neon/Auth projects | Zeus canonical infrastructure must stay singular | all sources | REJECT duplication |
+| Capability                             | Zeus current authority                                               | Strong source                       | Decision                                                  |
+| -------------------------------------- | -------------------------------------------------------------------- | ----------------------------------- | --------------------------------------------------------- |
+| Run state/tool loop                    | `packages/runtime/src/engine.ts`                                     | Odin mission runtime                | KEEP_ZEUS, port stronger invariants only                  |
+| Runtime usage limits                   | `RuntimePolicy` exists; cumulative telemetry enforcement was missing | Odin budget counters                | ADOPT into Zeus runtime guardrails                        |
+| Long-run recovery checkpoint integrity | no dedicated minimal integrity helper                                | Odin `src/mission/checkpoint.ts`    | ADOPT with Zeus-safe minimal state                        |
+| DAG/team coordination                  | `team-automation.ts`                                                 | Odin mission DAG, BYB work planning | KEEP_ZEUS, compare semantics before extending             |
+| Verification/repair                    | runtime verification callback plus M4 completion evidence            | Odin evidence/repair loop           | EXTEND_ZEUS in a later isolated slice                     |
+| Model/provider boundary                | OpenRouter/UNOROUTER adapters                                        | Odin provider abstractions          | KEEP_ZEUS provider authority; port only missing hardening |
+| Business order/product flow            | Zeus tasks/plans/TeamRun                                             | BYB validated order planner         | ADAPT product semantics, never duplicate persistence      |
+| Business lifecycle/worker leases       | Zeus runtime/team automation                                         | BYB                                 | INVENTORY then EXTEND Zeus models/runtime                 |
+| Governance identity/policy             | Zeus auth/security/runtime boundaries                                | SCP                                 | ADAPT policies onto Zeus actor/org identities             |
+| Connector governance                   | Zeus MCP/connected-app boundary                                      | SCP                                 | ADAPT missing checks; no duplicate vault or connector DB  |
+| Source local JSON/state ledgers        | stronger Zeus DB/RLS exists                                          | Odin/BYB/SCP legacy/prototypes      | REJECT                                                    |
+| Source Vercel/Neon/Auth projects       | Zeus canonical infrastructure must stay singular                     | all sources                         | REJECT duplication                                        |
 
 ## Slice 1 — Odin runtime guardrails
 

@@ -64,8 +64,8 @@ describe("runtime recovery checkpoints", () => {
 
   it("rejects unsafe or malformed recovery metadata", () => {
     expect(() => createRuntimeCheckpoint(state({ sequence: 0 }))).toThrow(/sequence/i);
-    expect(() =>
-      createRuntimeCheckpoint(state({ safeCursor: "x".repeat(4_097) })),
-    ).toThrow(/cursor/i);
+    expect(() => createRuntimeCheckpoint(state({ safeCursor: "x".repeat(4_097) }))).toThrow(
+      /cursor/i,
+    );
   });
 });

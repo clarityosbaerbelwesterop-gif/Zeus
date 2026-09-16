@@ -1,8 +1,4 @@
-import {
-  RuntimeError,
-  type ModelUsage,
-  type RuntimePolicy,
-} from "./index";
+import { RuntimeError, type ModelUsage, type RuntimePolicy } from "./index";
 
 export interface RuntimeUsageTotals {
   readonly modelCalls: number;
@@ -20,11 +16,7 @@ export const EMPTY_RUNTIME_USAGE: RuntimeUsageTotals = Object.freeze({
   estimatedCost: 0,
 });
 
-function finiteNonNegative(
-  value: number | undefined,
-  label: string,
-  integer: boolean,
-): number {
+function finiteNonNegative(value: number | undefined, label: string, integer: boolean): number {
   if (value === undefined) return 0;
   if (!Number.isFinite(value) || value < 0 || (integer && !Number.isSafeInteger(value))) {
     throw new RuntimeError("MODEL_ERROR", `Provider returned invalid ${label} usage telemetry.`);
@@ -73,7 +65,10 @@ export function accumulateRuntimeUsage(
     !Number.isSafeInteger(next.cachedTokens) ||
     !Number.isFinite(next.estimatedCost)
   ) {
-    throw new RuntimeError("RUN_LIMIT_EXCEEDED", "Run usage counters exceeded safe numeric bounds.");
+    throw new RuntimeError(
+      "RUN_LIMIT_EXCEEDED",
+      "Run usage counters exceeded safe numeric bounds.",
+    );
   }
 
   return Object.freeze(next);
@@ -93,7 +88,10 @@ export function assertRuntimeBudgetWithinPolicy(
 ): void {
   if (policy.maxRunTokens !== undefined) {
     if (!Number.isSafeInteger(policy.maxRunTokens) || policy.maxRunTokens < 0) {
-      throw new RuntimeError("INTERNAL_RUNTIME_ERROR", "Invalid runtime token budget configuration.");
+      throw new RuntimeError(
+        "INTERNAL_RUNTIME_ERROR",
+        "Invalid runtime token budget configuration.",
+      );
     }
     if (totalRunTokens(usage) > policy.maxRunTokens) {
       throw new RuntimeError("RUN_LIMIT_EXCEEDED", "Run token budget exceeded.");
@@ -102,7 +100,10 @@ export function assertRuntimeBudgetWithinPolicy(
 
   if (policy.maxEstimatedCost !== undefined) {
     if (!Number.isFinite(policy.maxEstimatedCost) || policy.maxEstimatedCost < 0) {
-      throw new RuntimeError("INTERNAL_RUNTIME_ERROR", "Invalid runtime cost budget configuration.");
+      throw new RuntimeError(
+        "INTERNAL_RUNTIME_ERROR",
+        "Invalid runtime cost budget configuration.",
+      );
     }
     if (usage.estimatedCost > policy.maxEstimatedCost) {
       throw new RuntimeError("RUN_LIMIT_EXCEEDED", "Run estimated-cost budget exceeded.");

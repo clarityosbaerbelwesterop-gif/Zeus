@@ -96,7 +96,10 @@ export function restoreRuntimeCheckpoint(
   }
   assertCheckpointState(checkpoint.state);
   if (hashState(checkpoint.state) !== checkpoint.snapshotHash) {
-    throw new RuntimeError("INTERNAL_RUNTIME_ERROR", "Runtime checkpoint integrity validation failed.");
+    throw new RuntimeError(
+      "INTERNAL_RUNTIME_ERROR",
+      "Runtime checkpoint integrity validation failed.",
+    );
   }
   return structuredClone(checkpoint.state);
 }

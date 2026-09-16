@@ -51,14 +51,12 @@ describe("runtime budget guardrails", () => {
   });
 
   it("enforces cumulative token and estimated-cost budgets", () => {
-    const ledger = new RuntimeBudgetLedger(
-      policy({ maxRunTokens: 150, maxEstimatedCost: 0.02 }),
-    );
+    const ledger = new RuntimeBudgetLedger(policy({ maxRunTokens: 150, maxEstimatedCost: 0.02 }));
 
     ledger.debit({ inputTokens: 80, outputTokens: 20, estimatedCost: 0.01 });
-    expect(() =>
-      ledger.debit({ inputTokens: 40, outputTokens: 20, estimatedCost: 0.005 }),
-    ).toThrow(/token budget exceeded/i);
+    expect(() => ledger.debit({ inputTokens: 40, outputTokens: 20, estimatedCost: 0.005 })).toThrow(
+      /token budget exceeded/i,
+    );
 
     const costLedger = new RuntimeBudgetLedger(
       policy({ maxRunTokens: 1_000, maxEstimatedCost: 0.02 }),
@@ -72,9 +70,9 @@ describe("runtime budget guardrails", () => {
   it("rejects malformed provider telemetry instead of allowing budget bypass", () => {
     const ledger = new RuntimeBudgetLedger(policy({ maxRunTokens: 100 }));
 
-    expect(() =>
-      ledger.debit({ inputTokens: -1, outputTokens: 1, estimatedCost: 0 }),
-    ).toThrow(/invalid input token/i);
+    expect(() => ledger.debit({ inputTokens: -1, outputTokens: 1, estimatedCost: 0 })).toThrow(
+      /invalid input token/i,
+    );
     expect(() =>
       accumulateRuntimeUsage(EMPTY_RUNTIME_USAGE, {
         inputTokens: 1.5,
