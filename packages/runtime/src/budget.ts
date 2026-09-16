@@ -28,6 +28,11 @@ export function assertRuntimeUsageTelemetry(
   usage: ModelUsage | undefined,
   policy: RuntimePolicy,
 ): void {
+  finiteNonNegative(usage?.inputTokens, "input token", true);
+  finiteNonNegative(usage?.outputTokens, "output token", true);
+  finiteNonNegative(usage?.cachedTokens, "cached token", true);
+  finiteNonNegative(usage?.estimatedCost, "estimated cost", false);
+
   if (policy.maxRunTokens !== undefined) {
     if (usage?.inputTokens === undefined || usage.outputTokens === undefined) {
       throw new RuntimeError(
