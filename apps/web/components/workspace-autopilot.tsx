@@ -1,4 +1,4 @@
-import { AGENT_TEMPLATES, type AgentCode } from "@zeus/agents";
+import { AGENT_TEMPLATES } from "@zeus/agents";
 import {
   approveBusinessAutopilotAction,
   draftBusinessAutopilotAction,
@@ -131,7 +131,7 @@ export async function AutopilotView({
                     {agent ? (
                       <AgentMark
                         agent={{
-                          code: agent.code as AgentCode,
+                          code: agent.code,
                           name: agent.name,
                           accent: agent.accent,
                         }}
