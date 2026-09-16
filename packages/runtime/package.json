@@ -12,6 +12,7 @@
     "./openrouter": "./src/openrouter.ts",
     "./unorouter": "./src/unorouter.ts",
     "./team-automation": "./src/team-automation.ts",
+    "./operating": "./src/operating-layer.ts",
     "./m4": "./src/m4-boundaries.ts",
     "./m5": "./src/m5-connected-apps.ts"
   },
