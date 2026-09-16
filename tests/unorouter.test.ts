@@ -8,18 +8,22 @@ const input = {
 
 describe("UnoRouter provider", () => {
   it("uses the documented endpoint and records only the serving credential slot", async () => {
-    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      expect(String(url)).toBe("https://api.unorouter.com/v1/chat/completions");
+    const fetchImpl = vi.fn<typeof fetch>((url, init) => {
+      const requestUrl =
+        typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+      expect(requestUrl).toBe("https://api.unorouter.com/v1/chat/completions");
       expect(new Headers(init?.headers).get("authorization")).toBe("Bearer primary-secret");
-      return new Response(
-        JSON.stringify({ model: "test-model", choices: [{ message: { content: "ok" } }] }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ model: "test-model", choices: [{ message: { content: "ok" } }] }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
       );
     });
     const provider = createUnoRouterProvider({
       primaryApiKey: "primary-secret",
       model: "test-model",
-      fetchImpl: fetchImpl as typeof fetch,
+      fetchImpl,
     });
     const output = await provider.generate(input, new AbortController().signal);
     expect(output.provider).toBe("unorouter:primary");
@@ -30,25 +34,29 @@ describe("UnoRouter provider", () => {
 
   it("falls back exactly once for 429 and respects a zero Retry-After", async () => {
     const authorizations: string[] = [];
-    const fetchImpl = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+    const fetchImpl = vi.fn<typeof fetch>((_url, init) => {
       const authorization = new Headers(init?.headers).get("authorization") ?? "";
       authorizations.push(authorization);
       if (authorization === "Bearer primary-secret") {
-        return new Response(JSON.stringify({ error: { code: "rate_limit" } }), {
-          status: 429,
-          headers: { "Content-Type": "application/json", "Retry-After": "0" },
-        });
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { code: "rate_limit" } }), {
+            status: 429,
+            headers: { "Content-Type": "application/json", "Retry-After": "0" },
+          }),
+        );
       }
-      return new Response(JSON.stringify({ choices: [{ message: { content: "fallback" } }] }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return Promise.resolve(
+        new Response(JSON.stringify({ choices: [{ message: { content: "fallback" } }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
     });
     const provider = createUnoRouterProvider({
       primaryApiKey: "primary-secret",
       fallbackApiKey: "fallback-secret",
       model: "test-model",
-      fetchImpl: fetchImpl as typeof fetch,
+      fetchImpl,
     });
     const output = await provider.generate(input, new AbortController().signal);
     expect(output.text).toBe("fallback");
