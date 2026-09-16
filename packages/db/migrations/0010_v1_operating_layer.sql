@@ -28,6 +28,7 @@ CREATE TABLE zeus.missions (
   workspace_id uuid NOT NULL REFERENCES zeus.workspaces(id) ON DELETE CASCADE,
   company_id uuid REFERENCES zeus.companies(id) ON DELETE SET NULL,
   conversation_id uuid REFERENCES zeus.conversations(id) ON DELETE SET NULL,
+  plan_id uuid REFERENCES zeus.plans(id) ON DELETE SET NULL,
   created_by text NOT NULL REFERENCES zeus.users(id),
   objective text NOT NULL CHECK(length(objective) BETWEEN 1 AND 20000),
   status text NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','planning','awaiting_approval','approved','running','blocked','verifying','completed','failed','cancelled')),
@@ -85,6 +86,7 @@ CREATE TABLE zeus.skill_versions (
 CREATE INDEX companies_workspace_idx ON zeus.companies(workspace_id,created_at DESC);
 CREATE INDEX missions_workspace_idx ON zeus.missions(workspace_id,created_at DESC);
 CREATE INDEX missions_company_idx ON zeus.missions(company_id,created_at DESC);
+CREATE INDEX missions_plan_idx ON zeus.missions(plan_id);
 CREATE UNIQUE INDEX skills_builtin_slug_unique ON zeus.skills(slug) WHERE workspace_id IS NULL;
 CREATE UNIQUE INDEX skills_workspace_slug_unique ON zeus.skills(workspace_id,slug) WHERE workspace_id IS NOT NULL;
 CREATE INDEX skill_versions_skill_idx ON zeus.skill_versions(skill_id,version DESC);
