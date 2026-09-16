@@ -1,5 +1,5 @@
 import { boolean, integer, jsonb, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { conversations, organizations, users, workspaces, zeus } from "./schema";
+import { conversations, organizations, plans, users, workspaces, zeus } from "./schema";
 
 export const companies = zeus.table("companies", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -40,6 +40,7 @@ export const missions = zeus.table("missions", {
   conversationId: uuid("conversation_id").references(() => conversations.id, {
     onDelete: "set null",
   }),
+  planId: uuid("plan_id").references(() => plans.id, { onDelete: "set null" }),
   createdBy: text("created_by")
     .notNull()
     .references(() => users.id),
