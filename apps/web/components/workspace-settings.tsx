@@ -27,7 +27,7 @@ interface ProviderDefinition {
   description: string;
   defaultScopes: string[];
   docUrl: string;
-  placeholder: string;
+  envVar: string;
   kind: "api_key" | "oauth" | "platform_native" | "mcp_remote";
 }
 
@@ -40,7 +40,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
       "Adaptive multi-model router engineered for high-throughput concurrency and dynamic failover.",
     defaultScopes: ["chat:completions", "routing:adaptive", "models:all"],
     docUrl: "https://unorouter.ai/docs",
-    placeholder: "uno_live_••••••••••••••••",
+    envVar: "UNOROUTER_API_KEY_1",
     kind: "api_key",
   },
   {
@@ -51,7 +51,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
       "Direct access to Gemini 3.6 Flash & Pro models with high-context reasoning and grounding tools.",
     defaultScopes: ["models/gemini-3.6-flash", "tools:execute", "grounding:google-search"],
     docUrl: "https://ai.google.dev",
-    placeholder: "AIzaSy••••••••••••••••••••",
+    envVar: "GEMINI_API_KEY",
     kind: "api_key",
   },
   {
@@ -62,7 +62,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
       "Unified aggregator gateway providing failover access to 200+ models with one unified endpoint.",
     defaultScopes: ["openrouter/auto", "chat:completions"],
     docUrl: "https://openrouter.ai/docs",
-    placeholder: "sk-or-v1-••••••••••••••••",
+    envVar: "OPENROUTER_API_KEY",
     kind: "api_key",
   },
   {
@@ -73,7 +73,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
       "Direct Claude 3.5 Sonnet & Haiku access for nuanced architecture and deep security review.",
     defaultScopes: ["claude-3-5-sonnet", "messages:create"],
     docUrl: "https://docs.anthropic.com",
-    placeholder: "sk-ant-api03-••••••••••••",
+    envVar: "ANTHROPIC_API_KEY",
     kind: "api_key",
   },
   {
@@ -83,7 +83,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     description: "Direct access to OpenAI GPT-4o, o1, and embeddings models.",
     defaultScopes: ["gpt-4o", "chat:completions"],
     docUrl: "https://platform.openai.com",
-    placeholder: "sk-proj-••••••••••••••••",
+    envVar: "OPENAI_API_KEY",
     kind: "api_key",
   },
   {
@@ -94,7 +94,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
       "Enables Kai to clone repositories, generate pull requests, examine commits, and review diffs.",
     defaultScopes: ["repo", "read:user", "pull_requests:write"],
     docUrl: "https://github.com/settings/tokens",
-    placeholder: "ghp_••••••••••••••••••••",
+    envVar: "GITHUB_TOKEN",
     kind: "oauth",
   },
   {
@@ -105,7 +105,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
       "Deploys preview branches and staging URLs directly for customer demos and automated checks.",
     defaultScopes: ["deployments:create", "projects:read"],
     docUrl: "https://vercel.com/account/tokens",
-    placeholder: "vercel_tok_••••••••••••",
+    envVar: "VERCEL_TOKEN",
     kind: "api_key",
   },
   {
@@ -116,7 +116,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
       "Provides ephemeral database branch provisioning for isolated agent code test runs.",
     defaultScopes: ["database:read_write", "branches:create"],
     docUrl: "https://neon.tech",
-    placeholder: "postgresql://user:pass@ep-cool-123.neon.tech/neondb",
+    envVar: "DATABASE_URL",
     kind: "platform_native",
   },
   {
@@ -126,7 +126,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     description: "Connects external tool providers and custom microservice toolkits via JSON-RPC.",
     defaultScopes: ["tools:list", "tools:call"],
     docUrl: "https://modelcontextprotocol.io",
-    placeholder: "https://mcp.internal.zeus.local/v1",
+    envVar: "MCP_SERVER_URL",
     kind: "mcp_remote",
   },
 ];
@@ -312,7 +312,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
               : "text-[var(--muted)] hover:text-[var(--ink)]"
           }`}
         >
-          Integration Keys & Providers
+          Integrations
         </button>
         <button
           id="tab-btn-workspace"
@@ -899,16 +899,16 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
         </section>
       )}
 
-      {/* TAB 3: Integration Keys & Providers */}
+      {/* TAB 3: Integrations */}
       {activeTab === "integrations" && (
         <section id="panel-integrations" className="space-y-6">
           {/* Security Notice */}
           <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950">
-            <p className="font-semibold">Confidential Vault Storage</p>
+            <p className="font-semibold">Server environment references</p>
             <p className="mt-1 leading-relaxed text-amber-900/90">
-              All integration keys, access tokens, and connection strings are vaulted server-side
-              with tenant-isolated encryption. Raw secret strings are never logged or returned to
-              the browser client after initial transmission.
+              Connections store <code className="font-mono">env:VAR_NAME</code> references to
+              variables already set on the Zeus server. Raw API keys are not encrypted or persisted.
+              A provider is connected only when that environment variable exists.
             </p>
           </div>
 
@@ -1011,7 +1011,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                           onClick={() => openProviderEditor(prov)}
                           className="rounded-xl bg-[var(--ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:opacity-90"
                         >
-                          {isConnected ? "Update Key" : "Configure Key"}
+                          {isConnected ? "Update env:VAR" : "Set env:VAR"}
                         </button>
                       </div>
                     </div>
@@ -1101,7 +1101,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                           onClick={() => openProviderEditor(prov)}
                           className="rounded-xl bg-[var(--ink)] px-3.5 py-1.5 text-xs font-medium text-white hover:opacity-90"
                         >
-                          {isConnected ? "Update Settings" : "Connect"}
+                          {isConnected ? "Update env:VAR" : "Set env:VAR"}
                         </button>
                       </div>
                     </div>
@@ -1272,7 +1272,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
             </div>
           </div>
 
-          {/* Modal / Dialog for Editing Key */}
+          {/* Modal for env:VAR connection reference */}
           {editingProvider && (
             <div
               id="modal-key-editor-backdrop"
@@ -1288,7 +1288,8 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                       Configure {editingProvider.name}
                     </h3>
                     <p className="mt-1 text-xs text-[var(--muted)]">
-                      {editingProvider.description}
+                      Save an <span className="font-mono">env:{editingProvider.envVar}</span>{" "}
+                      reference. Zeus does not encrypt or store the raw credential.
                     </p>
                   </div>
                   <button
@@ -1312,7 +1313,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                   <input type="hidden" name="kind" value={editingProvider.kind} />
 
                   <label className="block text-xs font-medium text-[var(--ink)]">
-                    API Key / Secret Token
+                    Environment variable reference
                     <div className="relative mt-1.5">
                       <input
                         required
@@ -1320,7 +1321,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                         name="secret"
                         value={keyInput}
                         onChange={(e) => setKeyInput(e.target.value)}
-                        placeholder={editingProvider.placeholder}
+                        placeholder={`env:${editingProvider.envVar}`}
                         className="w-full rounded-xl border border-[var(--line)] bg-white px-3.5 py-2.5 pr-16 text-xs font-mono text-[var(--ink)] focus:border-[var(--ink)] focus:outline-none"
                       />
                       <button
@@ -1331,6 +1332,11 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                         {showSecret ? "Hide" : "Reveal"}
                       </button>
                     </div>
+                    <p className="mt-1.5 font-normal text-[var(--muted)]">
+                      Use <span className="font-mono">env:VAR_NAME</span> or{" "}
+                      <span className="font-mono">VAR_NAME</span>. The variable must already exist
+                      in the server environment.
+                    </p>
                   </label>
 
                   <label className="block text-xs font-medium text-[var(--ink)]">
@@ -1367,7 +1373,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                       type="submit"
                       className="rounded-xl bg-[var(--ink)] px-5 py-2 text-xs font-medium text-white hover:opacity-90"
                     >
-                      Save & Encrypt Key
+                      Save env:VAR reference
                     </button>
                   </div>
                 </form>

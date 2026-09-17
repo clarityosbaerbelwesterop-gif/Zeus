@@ -1,5 +1,6 @@
 /* eslint-disable */
 import { createNeonAuth } from "@neondatabase/auth/next/server";
+import { isHostedRuntime, localMockOverrideEnabled } from "@zeus/security";
 
 let instance: ReturnType<typeof createNeonAuth> | undefined;
 
@@ -47,13 +48,27 @@ function createMockAuth(): ReturnType<typeof createNeonAuth> {
   } as unknown as ReturnType<typeof createNeonAuth>;
 }
 
+function missingAuthError(): Error {
+  if (isHostedRuntime()) {
+    return new Error(
+      "Neon Auth is not configured (NEON_AUTH_BASE_URL / NEON_AUTH_COOKIE_SECRET). Mock auth is disabled when NODE_ENV=production or VERCEL_ENV is preview/production.",
+    );
+  }
+  return new Error(
+    "Neon Auth is not configured. Set NEON_AUTH_BASE_URL and NEON_AUTH_COOKIE_SECRET, or ZEUS_ALLOW_MOCK_AUTH=1 for local development only.",
+  );
+}
+
 export function getAuth(): ReturnType<typeof createNeonAuth> {
   if (instance) return instance;
   const baseUrl = process.env.NEON_AUTH_BASE_URL;
   const secret = process.env.NEON_AUTH_COOKIE_SECRET;
   if (!baseUrl || !secret || secret.length < 32) {
+    if (!localMockOverrideEnabled("ZEUS_ALLOW_MOCK_AUTH")) {
+      throw missingAuthError();
+    }
     console.warn(
-      "[Zeus] Neon Auth not configured (NEON_AUTH_BASE_URL / NEON_AUTH_COOKIE_SECRET missing). Using local mock auth session.",
+      "[Zeus] Neon Auth not configured (NEON_AUTH_BASE_URL / NEON_AUTH_COOKIE_SECRET missing). Using local mock auth because ZEUS_ALLOW_MOCK_AUTH=1.",
     );
     instance = createMockAuth();
     return instance;

@@ -1,6 +1,7 @@
 /* eslint-disable */
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { isHostedRuntime, localMockOverrideEnabled } from "@zeus/security";
 import * as schema from "./schema";
 import { createMockPgClient } from "./mock-store";
 
@@ -8,10 +9,35 @@ export type ActorDatabase = NodePgDatabase<typeof schema>;
 let pool: Pool | undefined;
 let useMock = false;
 
+function mockDatabaseAllowed(): boolean {
+  return localMockOverrideEnabled("ZEUS_ALLOW_MOCK_DB");
+}
+
+function missingDatabaseUrlError(): Error {
+  if (isHostedRuntime()) {
+    return new Error(
+      "DATABASE_URL is not configured. In-memory mock database is disabled when NODE_ENV=production or VERCEL_ENV is preview/production.",
+    );
+  }
+  return new Error(
+    "DATABASE_URL is not configured. Set DATABASE_URL, or ZEUS_ALLOW_MOCK_DB=1 for local development only.",
+  );
+}
+
+function databaseUnavailableError(cause: unknown): Error {
+  const message = isHostedRuntime()
+    ? "Database connection failed. Refusing to fall back to an in-memory mock in production/preview."
+    : "Database connection failed. Set a reachable DATABASE_URL, or ZEUS_ALLOW_MOCK_DB=1 for local development only.";
+  return new Error(message, cause instanceof Error ? { cause } : undefined);
+}
+
 function getPool(): Pool {
   if (pool) return pool;
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
+    if (!mockDatabaseAllowed()) {
+      throw missingDatabaseUrlError();
+    }
     useMock = true;
     return createMockPgClient() as any;
   }
@@ -41,12 +67,21 @@ export async function withActor<T>(
   validateActor(userId);
   let client: any;
   if (!process.env.DATABASE_URL || useMock) {
+    if (!mockDatabaseAllowed()) {
+      throw missingDatabaseUrlError();
+    }
     client = createMockPgClient();
   } else {
     try {
       client = await getPool().connect();
     } catch (error) {
-      console.warn("[Zeus] Database connection failed. Falling back to in-memory store.", error);
+      if (!mockDatabaseAllowed()) {
+        throw databaseUnavailableError(error);
+      }
+      console.warn(
+        "[Zeus] Database connection failed. Falling back to in-memory store because ZEUS_ALLOW_MOCK_DB=1.",
+        error,
+      );
       useMock = true;
       client = createMockPgClient();
     }
@@ -74,4 +109,5 @@ export async function withActor<T>(
 export async function closeDatabase(): Promise<void> {
   await pool?.end();
   pool = undefined;
+  useMock = false;
 }

@@ -1,4 +1,5 @@
 import {
+  assertTrustedOrigin,
   createOpaqueToken,
   hashBearerToken,
   safeAuditMetadata,
@@ -15,6 +16,12 @@ describe("opaque API tokens", () => {
     expect(hashBearerToken(token.raw)).toBe(token.digest);
     expect(tokenDigestMatches(token.raw, token.digest)).toBe(true);
     expect(tokenDigestMatches(createOpaqueToken().raw, token.digest)).toBe(false);
+  });
+
+  it("rejects cross-origin mutations when an Origin is present", () => {
+    expect(() => assertTrustedOrigin("https://evil.example", "https://zeus.example")).toThrow(
+      /Cross-origin mutation denied/,
+    );
   });
 
   it("drops credential-like audit metadata keys", () => {

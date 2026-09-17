@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts"
   },
   "dependencies": {
+    "@zeus/security": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "pg": "^8.16.3"
   },

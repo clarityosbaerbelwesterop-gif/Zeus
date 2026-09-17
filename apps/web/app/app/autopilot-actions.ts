@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { approveAndRunBusinessAutopilot, draftBusinessAutopilot } from "@/lib/business-autopilot";
+import { assertTrustedMutationOrigin } from "@/lib/trusted-origin";
 
 function field(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -14,6 +15,7 @@ function autopilotLocation(workspaceId: string): string {
 }
 
 export async function draftBusinessAutopilotAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await draftBusinessAutopilot({
     workspaceId,
@@ -25,6 +27,7 @@ export async function draftBusinessAutopilotAction(formData: FormData) {
 }
 
 export async function approveBusinessAutopilotAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await approveAndRunBusinessAutopilot({
     workspaceId,
