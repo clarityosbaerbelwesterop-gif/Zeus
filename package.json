@@ -2,25 +2,22 @@
   "name": "zeus",
   "version": "0.1.0",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@10.17.1",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "dev": "npm run dev --workspace=apps/web",
-    "build": "npm run build --workspace=apps/web",
-    "start": "npm run start --workspace=apps/web",
+    "dev": "pnpm --filter @zeus/web dev",
+    "build": "pnpm --filter @zeus/web build",
+    "start": "pnpm --filter @zeus/web start",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "pnpm -r --if-present typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "db:generate": "npm run db:generate --workspace=packages/db"
+    "db:generate": "pnpm --filter @zeus/db db:generate"
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
