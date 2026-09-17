@@ -28,6 +28,33 @@ export function tokenDigestMatches(raw: string, expectedHex: string): boolean {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
+export type HostedRuntimeEnv = {
+  NODE_ENV?: string | undefined;
+  VERCEL_ENV?: string | undefined;
+  ZEUS_ALLOW_MOCK_AUTH?: string | undefined;
+  ZEUS_ALLOW_MOCK_DB?: string | undefined;
+  ZEUS_PUBLIC_ORIGIN?: string | undefined;
+  ZEUS_APP_URL?: string | undefined;
+};
+
+export function isHostedRuntime(env: HostedRuntimeEnv = process.env): boolean {
+  return (
+    env.NODE_ENV === "production" || env.VERCEL_ENV === "preview" || env.VERCEL_ENV === "production"
+  );
+}
+
+export function localMockOverrideEnabled(
+  flag: "ZEUS_ALLOW_MOCK_AUTH" | "ZEUS_ALLOW_MOCK_DB",
+  env: HostedRuntimeEnv = process.env,
+): boolean {
+  return !isHostedRuntime(env) && env[flag] === "1";
+}
+
+export function resolvePublicOrigin(env: HostedRuntimeEnv = process.env): string | null {
+  const configured = env.ZEUS_PUBLIC_ORIGIN?.trim() || env.ZEUS_APP_URL?.trim();
+  return configured ? configured : null;
+}
+
 export function assertTrustedOrigin(requestOrigin: string | null, publicOrigin: string): void {
   if (!requestOrigin) return;
   const expected = new URL(publicOrigin).origin;

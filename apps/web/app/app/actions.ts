@@ -5,6 +5,7 @@ import { requireSession } from "@zeus/auth/server";
 import { isMemoryType, isTaskPriority, isTaskStatus, isWorkspaceRole } from "@zeus/workspace";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { assertTrustedMutationOrigin } from "@/lib/trusted-origin";
 import { approveAndExecuteRepositoryChangeRequest } from "@/lib/kai-coding-tools";
 import {
   retryAgentRun,
@@ -60,6 +61,7 @@ function workspaceLocation(workspaceId: string, view?: string): string {
 }
 
 export async function createWorkspaceAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const agents = formData
     .getAll("agents")
     .map((value) => agent(value))
@@ -74,6 +76,7 @@ export async function createWorkspaceAction(formData: FormData) {
 }
 
 export async function updateWorkspaceAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await updateWorkspace(workspaceId, {
     name: field(formData, "name"),
@@ -89,6 +92,7 @@ export async function updateWorkspaceAction(formData: FormData) {
 }
 
 export async function archiveWorkspaceAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await archiveWorkspace(workspaceId, field(formData, "confirmation"));
   revalidatePath("/app");
@@ -96,6 +100,7 @@ export async function archiveWorkspaceAction(formData: FormData) {
 }
 
 export async function toggleAgentAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const code = agent(formData.get("agent"));
   if (!code) throw new Error("Unknown agent.");
@@ -104,6 +109,7 @@ export async function toggleAgentAction(formData: FormData) {
 }
 
 export async function createConversationAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const code = agent(formData.get("agent"));
   const id = await createConversation(
@@ -115,6 +121,7 @@ export async function createConversationAction(formData: FormData) {
 }
 
 export async function sendMessageAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const conversationId = field(formData, "conversationId");
   const workspaceId = field(formData, "workspaceId");
   await sendConversationMessageAndRun(conversationId, field(formData, "message"));
@@ -123,6 +130,7 @@ export async function sendMessageAction(formData: FormData) {
 }
 
 export async function runTaskAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await startTaskRun(workspaceId, field(formData, "taskId"));
   revalidatePath("/app");
@@ -130,6 +138,7 @@ export async function runTaskAction(formData: FormData) {
 }
 
 export async function stopRunAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await stopAgentRun(field(formData, "runId"));
   revalidatePath("/app");
@@ -139,6 +148,7 @@ export async function stopRunAction(formData: FormData) {
 }
 
 export async function retryRunAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await retryAgentRun(field(formData, "runId"));
   revalidatePath("/app");
@@ -148,6 +158,7 @@ export async function retryRunAction(formData: FormData) {
 }
 
 export async function createTaskAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const priority = field(formData, "priority");
   await createTask({
@@ -162,6 +173,7 @@ export async function createTaskAction(formData: FormData) {
 }
 
 export async function updateTaskAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const status = field(formData, "status");
   const priority = field(formData, "priority");
@@ -180,6 +192,7 @@ export async function updateTaskAction(formData: FormData) {
 }
 
 export async function createPlanAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const planId = await createPlan({
     workspaceId,
@@ -191,6 +204,7 @@ export async function createPlanAction(formData: FormData) {
 }
 
 export async function addPlanStepAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await addPlanStep({
     workspaceId,
@@ -204,6 +218,7 @@ export async function addPlanStepAction(formData: FormData) {
 }
 
 export async function uploadFileAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const value = formData.get("file");
   if (!(value instanceof File)) throw new Error("Choose a file to upload.");
@@ -213,6 +228,7 @@ export async function uploadFileAction(formData: FormData) {
 }
 
 export async function createMemoryAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const type = field(formData, "type");
   if (!isMemoryType(type)) throw new Error("Unknown memory type.");
@@ -229,6 +245,7 @@ export async function createMemoryAction(formData: FormData) {
 }
 
 export async function updateMemoryAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const type = field(formData, "type");
   if (!isMemoryType(type)) throw new Error("Unknown memory type.");
@@ -244,6 +261,7 @@ export async function updateMemoryAction(formData: FormData) {
 }
 
 export async function archiveMemoryAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await archiveMemory(workspaceId, field(formData, "memoryId"));
   revalidatePath("/app");
@@ -251,6 +269,7 @@ export async function archiveMemoryAction(formData: FormData) {
 }
 
 export async function createArtifactAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   await createArtifact({
     workspaceId,
@@ -265,6 +284,7 @@ export async function createArtifactAction(formData: FormData) {
 }
 
 export async function updateWorkspaceMemberAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const role = field(formData, "role");
   if (!isWorkspaceRole(role)) throw new Error("Unknown workspace role.");
@@ -274,6 +294,7 @@ export async function updateWorkspaceMemberAction(formData: FormData) {
 }
 
 export async function approveRepositoryChangeAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const requestId = field(formData, "requestId");
   const session = await requireSession();
@@ -283,6 +304,7 @@ export async function approveRepositoryChangeAction(formData: FormData) {
 }
 
 export async function saveUserPreferencesAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const defaultAgentRaw = field(formData, "defaultAgent");
   const defaultAgent: AgentCode = agentCodes.has(defaultAgentRaw as AgentCode)
@@ -313,6 +335,7 @@ export async function saveUserPreferencesAction(formData: FormData) {
 }
 
 export async function saveIntegrationConnectionAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const connectionId = optionalField(formData, "connectionId") ?? undefined;
   const provider = field(formData, "provider");
@@ -332,7 +355,6 @@ export async function saveIntegrationConnectionAction(formData: FormData) {
     provider,
     kind,
     secret: secret || undefined,
-    status: "connected",
     scopes,
   });
   revalidatePath("/app");
@@ -340,6 +362,7 @@ export async function saveIntegrationConnectionAction(formData: FormData) {
 }
 
 export async function testIntegrationConnectionAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const connectionId = field(formData, "connectionId");
   await testIntegrationConnection({ workspaceId, connectionId });
@@ -348,6 +371,7 @@ export async function testIntegrationConnectionAction(formData: FormData) {
 }
 
 export async function deleteIntegrationConnectionAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const connectionId = field(formData, "connectionId");
   await deleteIntegrationConnection({ workspaceId, connectionId });
@@ -356,6 +380,7 @@ export async function deleteIntegrationConnectionAction(formData: FormData) {
 }
 
 export async function createApiTokenAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const label = field(formData, "label") || "Default Access Token";
   const scopesRaw = field(formData, "scopes");
@@ -379,6 +404,7 @@ export async function createApiTokenAction(formData: FormData) {
 }
 
 export async function revokeApiTokenAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const tokenId = field(formData, "tokenId");
   await revokeApiToken({ workspaceId, tokenId });

@@ -1,5 +1,6 @@
 /* eslint-disable */
-// In-memory data store for local development / preview when DATABASE_URL is not configured.
+// In-memory data store for local development when ZEUS_ALLOW_MOCK_DB=1.
+// Never used when NODE_ENV=production or VERCEL_ENV is preview/production.
 type TableName = string;
 type Row = Record<string, any>;
 

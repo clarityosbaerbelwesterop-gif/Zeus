@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@neondatabase/auth": "latest"
+    "@neondatabase/auth": "latest",
+    "@zeus/security": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
