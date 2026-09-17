@@ -1628,16 +1628,39 @@ export async function saveIntegrationConnection(input: {
     await requireCapability(db, account.user.id, input.workspaceId, "workspace.manage");
     const now = new Date();
     const scopes = input.scopes ?? [];
-    const secretRef = input.secret?.trim()
-      ? `vault:${input.provider.toLowerCase()}_${randomUUID().slice(0, 8)}`
-      : undefined;
+    const trimmedSecret = input.secret?.trim();
+    let secretRef: string | undefined;
+    if (trimmedSecret) {
+      // Real credential broker only resolves env:VAR refs (see kai-coding-tools).
+      // Never invent synthetic vault:* refs — that fakes persistence.
+      if (/^env:[A-Z][A-Z0-9_]{2,127}$/.test(trimmedSecret)) {
+        secretRef = trimmedSecret;
+      } else if (/^[A-Z][A-Z0-9_]{2,127}$/.test(trimmedSecret)) {
+        secretRef = `env:${trimmedSecret}`;
+      } else {
+        throw new Error(
+          "Integration secrets must be env:VAR_NAME references; raw secrets are not persisted as vault refs.",
+        );
+      }
+      if (!process.env[secretRef.slice(4)]) {
+        throw new Error(
+          `Environment variable ${secretRef.slice(4)} is not set; refusing to store a dead credential reference.`,
+        );
+      }
+    }
+
+    const nextStatus = secretRef
+      ? (input.status ?? "connected")
+      : input.status && input.status !== "connected"
+        ? input.status
+        : "not_connected";
 
     if (input.connectionId) {
       await db
         .update(connections)
         .set({
           kind: input.kind,
-          status: input.status ?? "connected",
+          status: nextStatus,
           scopes: [...scopes],
           ...(secretRef ? { secretRef } : {}),
           updatedAt: now,
@@ -1648,7 +1671,7 @@ export async function saveIntegrationConnection(input: {
             eq(connections.workspaceId, input.workspaceId),
           ),
         );
-      return { id: input.connectionId, status: input.status ?? "connected" };
+      return { id: input.connectionId, status: nextStatus };
     }
 
     const id = randomUUID();
@@ -1658,9 +1681,9 @@ export async function saveIntegrationConnection(input: {
       ownerId: account.user.id,
       provider: input.provider.toLowerCase().trim(),
       kind: input.kind,
-      status: input.status ?? "connected",
+      status: nextStatus,
       scopes: [...scopes],
-      secretRef: secretRef ?? `vault:${input.provider.toLowerCase()}_configured`,
+      secretRef: secretRef ?? null,
       createdAt: now,
       updatedAt: now,
     });
@@ -1678,7 +1701,7 @@ export async function saveIntegrationConnection(input: {
       createdAt: now,
     });
 
-    return { id, status: input.status ?? "connected" };
+    return { id, status: nextStatus };
   });
 }
 
@@ -1702,6 +1725,29 @@ export async function testIntegrationConnection(input: {
     )[0];
     if (!conn) return { ok: false, error: "Connection not found" };
 
+    const ref = conn.secretRef?.trim() ?? "";
+    if (!ref.startsWith("env:") || !/^[A-Z][A-Z0-9_]{2,127}$/.test(ref.slice(4))) {
+      return {
+        ok: false,
+        error: "Connection has no resolvable env: secret reference",
+        provider: conn.provider,
+        status: conn.status,
+      };
+    }
+    const envKey = ref.slice(4);
+    if (!process.env[envKey]) {
+      await db
+        .update(connections)
+        .set({ status: "error", updatedAt: new Date() })
+        .where(eq(connections.id, conn.id));
+      return {
+        ok: false,
+        error: `Environment variable ${envKey} is not set`,
+        provider: conn.provider,
+        status: "error",
+      };
+    }
+
     await db
       .update(connections)
       .set({ status: "connected", updatedAt: new Date() })
@@ -1721,18 +1767,12 @@ export async function deleteIntegrationConnection(input: {
     await db
       .delete(connections)
       .where(
-        and(
-          eq(connections.id, input.connectionId),
-          eq(connections.workspaceId, input.workspaceId),
-        ),
+        and(eq(connections.id, input.connectionId), eq(connections.workspaceId, input.workspaceId)),
       );
   });
 }
 
-export async function revokeApiToken(input: {
-  workspaceId?: string | undefined;
-  tokenId: string;
-}) {
+export async function revokeApiToken(input: { workspaceId?: string | undefined; tokenId: string }) {
   const account = await bootstrapAccount();
   return withActor(account.user.id, async (db) => {
     if (input.workspaceId) {
