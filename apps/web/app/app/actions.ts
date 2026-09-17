@@ -297,8 +297,10 @@ export async function saveUserPreferencesAction(formData: FormData) {
     density: (field(formData, "density") as "comfortable" | "compact") || "comfortable",
     codeFont: (field(formData, "codeFont") as "jetbrains" | "fira" | "geist") || "jetbrains",
     defaultAgent,
-    streamingEnabled: formData.get("streamingEnabled") === "on" || formData.get("streamingEnabled") === "true",
-    autoVerifyCode: formData.get("autoVerifyCode") === "on" || formData.get("autoVerifyCode") === "true",
+    streamingEnabled:
+      formData.get("streamingEnabled") === "on" || formData.get("streamingEnabled") === "true",
+    autoVerifyCode:
+      formData.get("autoVerifyCode") === "on" || formData.get("autoVerifyCode") === "true",
     soundAlerts: formData.get("soundAlerts") === "on" || formData.get("soundAlerts") === "true",
     requireSideEffectConfirmation:
       formData.get("requireSideEffectConfirmation") === "on" ||
@@ -317,7 +319,12 @@ export async function saveIntegrationConnectionAction(formData: FormData) {
   const kind = field(formData, "kind") || "api_key";
   const secret = field(formData, "secret");
   const scopesRaw = field(formData, "scopes");
-  const scopes = scopesRaw ? scopesRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  const scopes = scopesRaw
+    ? scopesRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
 
   await saveIntegrationConnection({
     workspaceId,
@@ -352,7 +359,12 @@ export async function createApiTokenAction(formData: FormData) {
   const workspaceId = field(formData, "workspaceId");
   const label = field(formData, "label") || "Default Access Token";
   const scopesRaw = field(formData, "scopes");
-  const scopes = scopesRaw ? scopesRaw.split(",").map((s) => s.trim()).filter(Boolean) : ["workspace.read"];
+  const scopes = scopesRaw
+    ? scopesRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : ["workspace.read"];
   const expiresDays = parseInt(field(formData, "expiresDays") || "90", 10);
   const expiresAt = new Date(Date.now() + expiresDays * 24 * 60 * 60 * 1000);
 

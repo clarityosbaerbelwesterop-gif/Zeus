@@ -36,7 +36,8 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     id: "unorouter",
     name: "UnoRouter High-Throughput",
     category: "ai",
-    description: "Adaptive multi-model router engineered for high-throughput concurrency and dynamic failover.",
+    description:
+      "Adaptive multi-model router engineered for high-throughput concurrency and dynamic failover.",
     defaultScopes: ["chat:completions", "routing:adaptive", "models:all"],
     docUrl: "https://unorouter.ai/docs",
     placeholder: "uno_live_••••••••••••••••",
@@ -46,7 +47,8 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     id: "gemini",
     name: "Google Gemini Native",
     category: "ai",
-    description: "Direct access to Gemini 3.6 Flash & Pro models with high-context reasoning and grounding tools.",
+    description:
+      "Direct access to Gemini 3.6 Flash & Pro models with high-context reasoning and grounding tools.",
     defaultScopes: ["models/gemini-3.6-flash", "tools:execute", "grounding:google-search"],
     docUrl: "https://ai.google.dev",
     placeholder: "AIzaSy••••••••••••••••••••",
@@ -56,7 +58,8 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     id: "openrouter",
     name: "OpenRouter Aggregator",
     category: "ai",
-    description: "Unified aggregator gateway providing failover access to 200+ models with one unified endpoint.",
+    description:
+      "Unified aggregator gateway providing failover access to 200+ models with one unified endpoint.",
     defaultScopes: ["openrouter/auto", "chat:completions"],
     docUrl: "https://openrouter.ai/docs",
     placeholder: "sk-or-v1-••••••••••••••••",
@@ -66,7 +69,8 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     id: "anthropic",
     name: "Anthropic Claude Direct",
     category: "ai",
-    description: "Direct Claude 3.5 Sonnet & Haiku access for nuanced architecture and deep security review.",
+    description:
+      "Direct Claude 3.5 Sonnet & Haiku access for nuanced architecture and deep security review.",
     defaultScopes: ["claude-3-5-sonnet", "messages:create"],
     docUrl: "https://docs.anthropic.com",
     placeholder: "sk-ant-api03-••••••••••••",
@@ -86,7 +90,8 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     id: "github",
     name: "GitHub Repository Access",
     category: "platform",
-    description: "Enables Kai to clone repositories, generate pull requests, examine commits, and review diffs.",
+    description:
+      "Enables Kai to clone repositories, generate pull requests, examine commits, and review diffs.",
     defaultScopes: ["repo", "read:user", "pull_requests:write"],
     docUrl: "https://github.com/settings/tokens",
     placeholder: "ghp_••••••••••••••••••••",
@@ -96,7 +101,8 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     id: "vercel",
     name: "Vercel Platform",
     category: "platform",
-    description: "Deploys preview branches and staging URLs directly for customer demos and automated checks.",
+    description:
+      "Deploys preview branches and staging URLs directly for customer demos and automated checks.",
     defaultScopes: ["deployments:create", "projects:read"],
     docUrl: "https://vercel.com/account/tokens",
     placeholder: "vercel_tok_••••••••••••",
@@ -106,7 +112,8 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     id: "neon",
     name: "Neon Serverless Postgres",
     category: "database",
-    description: "Provides ephemeral database branch provisioning for isolated agent code test runs.",
+    description:
+      "Provides ephemeral database branch provisioning for isolated agent code test runs.",
     defaultScopes: ["database:read_write", "branches:create"],
     docUrl: "https://neon.tech",
     placeholder: "postgresql://user:pass@ep-cool-123.neon.tech/neondb",
@@ -132,7 +139,11 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
   const [keyInput, setKeyInput] = useState("");
   const [showSecret, setShowSecret] = useState(false);
   const [scopesInput, setScopesInput] = useState("");
-  const [testResult, setTestResult] = useState<{ id: string; status: "success" | "testing" | "error"; message?: string } | null>(null);
+  const [testResult, setTestResult] = useState<{
+    id: string;
+    status: "success" | "testing" | "error";
+    message?: string;
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
@@ -202,7 +213,8 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
       byModel[mod].cost += cost;
     }
 
-    const avgLatency = filteredUsage.length > 0 ? Math.round(totalLatency / filteredUsage.length) : 0;
+    const avgLatency =
+      filteredUsage.length > 0 ? Math.round(totalLatency / filteredUsage.length) : 0;
 
     return {
       totalTokens: totalInput + totalOutput,
@@ -226,7 +238,11 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
     startTransition(async () => {
       try {
         await testIntegrationConnectionAction(formData);
-        setTestResult({ id: connId, status: "success", message: `Connected & verified with ${providerName}` });
+        setTestResult({
+          id: connId,
+          status: "success",
+          message: `Connected & verified with ${providerName}`,
+        });
         setTimeout(() => setTestResult(null), 4000);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Connection verification failed";
@@ -341,7 +357,8 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
               <div className="mb-4">
                 <h2 className="text-base font-semibold text-[var(--ink)]">Operator Identity</h2>
                 <p className="text-xs text-[var(--muted)]">
-                  Personal profile details visible across conversations, task assignments, and audit logs.
+                  Personal profile details visible across conversations, task assignments, and audit
+                  logs.
                 </p>
               </div>
 
@@ -368,7 +385,10 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                   />
                 </label>
 
-                <label className="text-xs font-medium text-[var(--ink)] sm:col-span-2" htmlFor="pref-input-role">
+                <label
+                  className="text-xs font-medium text-[var(--ink)] sm:col-span-2"
+                  htmlFor="pref-input-role"
+                >
                   Operational Title / Role
                   <input
                     id="pref-input-role"
@@ -384,14 +404,19 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
             {/* Visual and Editor Appearance */}
             <div className="rounded-[20px] border border-[var(--line)] bg-white/45 p-6">
               <div className="mb-4">
-                <h2 className="text-base font-semibold text-[var(--ink)]">Interface & Editor Appearance</h2>
+                <h2 className="text-base font-semibold text-[var(--ink)]">
+                  Interface & Editor Appearance
+                </h2>
                 <p className="text-xs text-[var(--muted)]">
                   Calibrate typography, spacing density, and UI rendering preferences.
                 </p>
               </div>
 
               <div className="grid gap-5 sm:grid-cols-3">
-                <label className="text-xs font-medium text-[var(--ink)]" htmlFor="pref-select-theme">
+                <label
+                  className="text-xs font-medium text-[var(--ink)]"
+                  htmlFor="pref-select-theme"
+                >
                   Color Theme
                   <select
                     id="pref-select-theme"
@@ -405,7 +430,10 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                   </select>
                 </label>
 
-                <label className="text-xs font-medium text-[var(--ink)]" htmlFor="pref-select-density">
+                <label
+                  className="text-xs font-medium text-[var(--ink)]"
+                  htmlFor="pref-select-density"
+                >
                   Layout Density
                   <select
                     id="pref-select-density"
@@ -418,7 +446,10 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                   </select>
                 </label>
 
-                <label className="text-xs font-medium text-[var(--ink)]" htmlFor="pref-select-codefont">
+                <label
+                  className="text-xs font-medium text-[var(--ink)]"
+                  htmlFor="pref-select-codefont"
+                >
                   Code & Diff Typography
                   <select
                     id="pref-select-codefont"
@@ -437,9 +468,12 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
             {/* Specialist Agent Defaults */}
             <div className="rounded-[20px] border border-[var(--line)] bg-white/45 p-6">
               <div className="mb-4">
-                <h2 className="text-base font-semibold text-[var(--ink)]">Specialist Agent Defaults</h2>
+                <h2 className="text-base font-semibold text-[var(--ink)]">
+                  Specialist Agent Defaults
+                </h2>
                 <p className="text-xs text-[var(--muted)]">
-                  Designate the default lead specialist when dispatching unassigned instructions or autopilot objectives.
+                  Designate the default lead specialist when dispatching unassigned instructions or
+                  autopilot objectives.
                 </p>
               </div>
 
@@ -461,11 +495,17 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                       className="accent-[var(--ink)]"
                     />
                     <AgentMark
-                      agent={{ code: agent.code as AgentCode, name: agent.name, accent: agent.accent }}
+                      agent={{
+                        code: agent.code as AgentCode,
+                        name: agent.name,
+                        accent: agent.accent,
+                      }}
                       size={28}
                     />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium leading-none text-[var(--ink)]">{agent.name}</p>
+                      <p className="text-sm font-medium leading-none text-[var(--ink)]">
+                        {agent.name}
+                      </p>
                       <p className="mt-1 truncate text-[11px] text-[var(--muted)]">{agent.role}</p>
                     </div>
                   </label>
@@ -476,7 +516,9 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
             {/* Execution & Safety Controls */}
             <div className="rounded-[20px] border border-[var(--line)] bg-white/45 p-6">
               <div className="mb-4">
-                <h2 className="text-base font-semibold text-[var(--ink)]">Execution & Safety Controls</h2>
+                <h2 className="text-base font-semibold text-[var(--ink)]">
+                  Execution & Safety Controls
+                </h2>
                 <p className="text-xs text-[var(--muted)]">
                   Fine-tune autonomous agent behaviors, tool safety checks, and completion alerts.
                 </p>
@@ -491,9 +533,12 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                     className="mt-1 h-4 w-4 rounded border-[var(--line)] accent-[var(--ink)]"
                   />
                   <div>
-                    <span className="text-sm font-medium text-[var(--ink)]">Real-Time Token Streaming</span>
+                    <span className="text-sm font-medium text-[var(--ink)]">
+                      Real-Time Token Streaming
+                    </span>
                     <p className="text-xs text-[var(--muted)]">
-                      Stream agent token generation word-by-word into the chat interface as it is calculated.
+                      Stream agent token generation word-by-word into the chat interface as it is
+                      calculated.
                     </p>
                   </div>
                 </label>
@@ -506,9 +551,12 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                     className="mt-1 h-4 w-4 rounded border-[var(--line)] accent-[var(--ink)]"
                   />
                   <div>
-                    <span className="text-sm font-medium text-[var(--ink)]">Automated Verification Step for Kai</span>
+                    <span className="text-sm font-medium text-[var(--ink)]">
+                      Automated Verification Step for Kai
+                    </span>
                     <p className="text-xs text-[var(--muted)]">
-                      Kai automatically executes syntax and compile checks before requesting approval for repository patches.
+                      Kai automatically executes syntax and compile checks before requesting
+                      approval for repository patches.
                     </p>
                   </div>
                 </label>
@@ -521,9 +569,12 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                     className="mt-1 h-4 w-4 rounded border-[var(--line)] accent-[var(--ink)]"
                   />
                   <div>
-                    <span className="text-sm font-medium text-[var(--ink)]">Audio Notification on Completion</span>
+                    <span className="text-sm font-medium text-[var(--ink)]">
+                      Audio Notification on Completion
+                    </span>
                     <p className="text-xs text-[var(--muted)]">
-                      Play an unobtrusive audio chime when long-running task workflows or autopilot steps finish.
+                      Play an unobtrusive audio chime when long-running task workflows or autopilot
+                      steps finish.
                     </p>
                   </div>
                 </label>
@@ -536,9 +587,12 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                     className="mt-1 h-4 w-4 rounded border-[var(--line)] accent-[var(--ink)]"
                   />
                   <div>
-                    <span className="text-sm font-medium text-[var(--ink)]">Side-Effect Confirmation Prompts</span>
+                    <span className="text-sm font-medium text-[var(--ink)]">
+                      Side-Effect Confirmation Prompts
+                    </span>
                     <p className="text-xs text-[var(--muted)]">
-                      Require human operator sign-off before running destructive bash shell commands or overwriting existing files.
+                      Require human operator sign-off before running destructive bash shell commands
+                      or overwriting existing files.
                     </p>
                   </div>
                 </label>
@@ -551,9 +605,12 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                     className="mt-1 h-4 w-4 rounded border-[var(--line)] accent-[var(--ink)]"
                   />
                   <div>
-                    <span className="text-sm font-medium text-[var(--ink)]">Telemetry & Token Accounting</span>
+                    <span className="text-sm font-medium text-[var(--ink)]">
+                      Telemetry & Token Accounting
+                    </span>
                     <p className="text-xs text-[var(--muted)]">
-                      Log prompt token metrics and latency into the workspace telemetry ledger for cost attribution.
+                      Log prompt token metrics and latency into the workspace telemetry ledger for
+                      cost attribution.
                     </p>
                   </div>
                 </label>
@@ -580,13 +637,18 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
           {/* Timeframe Filter Bar */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-base font-semibold text-[var(--ink)]">API Consumption & Token Telemetry</h2>
+              <h2 className="text-base font-semibold text-[var(--ink)]">
+                API Consumption & Token Telemetry
+              </h2>
               <p className="text-xs text-[var(--muted)]">
                 Aggregated token volume, latency benchmarks, and provider cost accounting.
               </p>
             </div>
 
-            <div className="flex rounded-xl border border-[var(--line)] bg-white/50 p-1" id="timeframe-selector">
+            <div
+              className="flex rounded-xl border border-[var(--line)] bg-white/50 p-1"
+              id="timeframe-selector"
+            >
               {(
                 [
                   { id: "today", label: "Today" },
@@ -633,9 +695,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
               <p className="mt-2 text-2xl font-bold tracking-tight text-[var(--ink)]">
                 {usageStats.totalCached.toLocaleString()}
               </p>
-              <p className="mt-2 text-[11px] text-emerald-700">
-                Reduced latency & pricing tier
-              </p>
+              <p className="mt-2 text-[11px] text-emerald-700">Reduced latency & pricing tier</p>
             </div>
 
             <div className="rounded-[18px] border border-[var(--line)] bg-white/45 p-5">
@@ -675,18 +735,25 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
               <div className="mt-5 space-y-4">
                 {data.agents.map((agent) => {
                   const stat = usageStats.byAgent[agent.code] || { tokens: 0, cost: 0, count: 0 };
-                  const pct = usageStats.totalTokens > 0 ? (stat.tokens / usageStats.totalTokens) * 100 : 0;
+                  const pct =
+                    usageStats.totalTokens > 0 ? (stat.tokens / usageStats.totalTokens) * 100 : 0;
 
                   return (
                     <div key={agent.code} className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <div className="flex items-center gap-2">
                           <AgentMark
-                            agent={{ code: agent.code as AgentCode, name: agent.name, accent: agent.accent }}
+                            agent={{
+                              code: agent.code as AgentCode,
+                              name: agent.name,
+                              accent: agent.accent,
+                            }}
                             size={20}
                           />
                           <span className="font-medium text-[var(--ink)]">{agent.name}</span>
-                          <span className="text-[11px] text-[var(--muted)]">({stat.count} runs)</span>
+                          <span className="text-[11px] text-[var(--muted)]">
+                            ({stat.count} runs)
+                          </span>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="font-mono text-[11px] text-[var(--ink)]">
@@ -727,11 +794,15 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                   </p>
                 ) : (
                   Object.entries(usageStats.byModel).map(([modelName, stat]) => {
-                    const pct = usageStats.totalTokens > 0 ? (stat.tokens / usageStats.totalTokens) * 100 : 0;
+                    const pct =
+                      usageStats.totalTokens > 0 ? (stat.tokens / usageStats.totalTokens) * 100 : 0;
                     return (
                       <div key={modelName} className="space-y-1.5">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-[var(--ink)] truncate max-w-[200px]" title={modelName}>
+                          <span
+                            className="font-medium text-[var(--ink)] truncate max-w-[200px]"
+                            title={modelName}
+                          >
                             {modelName}
                           </span>
                           <div className="flex items-center gap-3">
@@ -788,7 +859,8 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                   {filteredUsage.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="py-8 text-center text-xs text-[var(--muted)]">
-                        No usage records found for this timeframe. Real agent dispatches will populate here automatically.
+                        No usage records found for this timeframe. Real agent dispatches will
+                        populate here automatically.
                       </td>
                     </tr>
                   ) : (
@@ -834,8 +906,9 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
           <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-xs text-amber-950">
             <p className="font-semibold">Confidential Vault Storage</p>
             <p className="mt-1 leading-relaxed text-amber-900/90">
-              All integration keys, access tokens, and connection strings are vaulted server-side with tenant-isolated encryption.
-              Raw secret strings are never logged or returned to the browser client after initial transmission.
+              All integration keys, access tokens, and connection strings are vaulted server-side
+              with tenant-isolated encryption. Raw secret strings are never logged or returned to
+              the browser client after initial transmission.
             </p>
           </div>
 
@@ -861,7 +934,9 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-[var(--ink)]">AI & LLM Routing Providers</h2>
+                <h2 className="text-base font-semibold text-[var(--ink)]">
+                  AI & LLM Routing Providers
+                </h2>
                 <p className="text-xs text-[var(--muted)]">
                   Primary and fallback inference backends utilized by the agent runtime.
                 </p>
@@ -899,7 +974,9 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                           {isConnected ? "Connected" : "Not Configured"}
                         </span>
                       </div>
-                      <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{prov.description}</p>
+                      <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                        {prov.description}
+                      </p>
                     </div>
 
                     <div className="mt-5 border-t border-[var(--line)] pt-3">
@@ -947,9 +1024,12 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
           {/* Platform & Tool Integrations Section */}
           <div className="space-y-4 pt-4">
             <div>
-              <h2 className="text-base font-semibold text-[var(--ink)]">Developer & Platform Integrations</h2>
+              <h2 className="text-base font-semibold text-[var(--ink)]">
+                Developer & Platform Integrations
+              </h2>
               <p className="text-xs text-[var(--muted)]">
-                Connect external repositories, deployment clouds, and ephemeral databases for autonomous tool calling.
+                Connect external repositories, deployment clouds, and ephemeral databases for
+                autonomous tool calling.
               </p>
             </div>
 
@@ -984,7 +1064,9 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                           {isConnected ? "Active" : "Disconnected"}
                         </span>
                       </div>
-                      <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{prov.description}</p>
+                      <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                        {prov.description}
+                      </p>
                     </div>
 
                     <div className="mt-5 border-t border-[var(--line)] pt-3">
@@ -1033,9 +1115,12 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
           <div className="space-y-4 pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-[var(--ink)]">Zeus Personal Access Tokens</h2>
+                <h2 className="text-base font-semibold text-[var(--ink)]">
+                  Zeus Personal Access Tokens
+                </h2>
                 <p className="text-xs text-[var(--muted)]">
-                  Bearer authentication tokens for invoking Zeus agents via REST API, CLI, or GitHub Actions.
+                  Bearer authentication tokens for invoking Zeus agents via REST API, CLI, or GitHub
+                  Actions.
                 </p>
               </div>
               <button
@@ -1137,7 +1222,8 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                     {(data.apiTokens || []).length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-6 text-center text-xs text-[var(--muted)]">
-                          No active personal access tokens. Generate one above to access Zeus from external scripts.
+                          No active personal access tokens. Generate one above to access Zeus from
+                          external scripts.
                         </td>
                       </tr>
                     ) : (
@@ -1160,7 +1246,9 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                             </td>
                             <td className="py-3 text-right">
                               {isRevoked ? (
-                                <span className="text-[11px] text-rose-600 font-medium">Revoked</span>
+                                <span className="text-[11px] text-rose-600 font-medium">
+                                  Revoked
+                                </span>
                               ) : (
                                 <form action={revokeApiTokenAction}>
                                   <input type="hidden" name="workspaceId" value={workspace.id} />
@@ -1199,7 +1287,9 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                     <h3 className="text-base font-semibold text-[var(--ink)]">
                       Configure {editingProvider.name}
                     </h3>
-                    <p className="mt-1 text-xs text-[var(--muted)]">{editingProvider.description}</p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">
+                      {editingProvider.description}
+                    </p>
                   </div>
                   <button
                     onClick={() => setEditingProvider(null)}
@@ -1354,7 +1444,10 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                 className="mt-1 w-full rounded-xl border border-[var(--line)] bg-white/60 px-3 py-2 text-sm text-[var(--ink)] disabled:opacity-60"
               />
             </label>
-            <label className="text-xs text-[var(--muted)] sm:col-span-2" htmlFor="ws-field-criteria">
+            <label
+              className="text-xs text-[var(--muted)] sm:col-span-2"
+              htmlFor="ws-field-criteria"
+            >
               Success criteria
               <textarea
                 id="ws-field-criteria"
@@ -1418,7 +1511,9 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                 >
                   <div>
                     <p className="text-sm font-medium">{member.user?.name ?? member.userId}</p>
-                    <p className="text-xs text-[var(--muted)]">{member.user?.email ?? member.userId}</p>
+                    <p className="text-xs text-[var(--muted)]">
+                      {member.user?.email ?? member.userId}
+                    </p>
                   </div>
                   {canManage ? (
                     <form action={updateWorkspaceMemberAction} className="flex gap-2">
@@ -1453,7 +1548,10 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
               Archiving hides the workspace without deleting its history or event trail.
             </p>
             {canManage ? (
-              <form action={archiveWorkspaceAction} className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <form
+                action={archiveWorkspaceAction}
+                className="mt-4 flex flex-col gap-2 sm:flex-row"
+              >
                 <input type="hidden" name="workspaceId" value={workspace.id} />
                 <input
                   required
