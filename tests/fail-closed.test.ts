@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { closeDatabase, withActor } from "../packages/db/src/client";
+import { envCredentialRef } from "../packages/db/src/mock-store";
 import {
   assertTrustedOrigin,
   isHostedRuntime,
@@ -74,6 +75,23 @@ describe("trusted origin", () => {
   });
 });
 
+describe("honest mock connection secrets", () => {
+  it("uses env:VAR only when the matching process.env value exists", () => {
+    expect(envCredentialRef("UNOROUTER_API_KEY_1", { UNOROUTER_API_KEY_1: "present" })).toEqual({
+      status: "connected",
+      secret_ref: "env:UNOROUTER_API_KEY_1",
+    });
+    expect(envCredentialRef("UNOROUTER_API_KEY_1", {})).toEqual({
+      status: "not_connected",
+      secret_ref: null,
+    });
+    expect(envCredentialRef("GEMINI_API_KEY", { UNOROUTER_API_KEY_1: "other" })).toEqual({
+      status: "not_connected",
+      secret_ref: null,
+    });
+  });
+});
+
 describe("fail-closed mock database", () => {
   afterEach(async () => {
     await closeDatabase();
@@ -134,5 +152,26 @@ describe("product-path regressions", () => {
     expect(source).toMatch(
       /if \(!localMockOverrideEnabled\("ZEUS_ALLOW_MOCK_AUTH"\)\) \{\s*throw missingAuthError/,
     );
+  });
+
+  it("does not seed fake vault: connection secrets", () => {
+    const source = readFileSync(
+      new URL("../packages/db/src/mock-store.ts", import.meta.url),
+      "utf8",
+    );
+    expect(source).not.toMatch(/vault:/);
+    expect(source).toContain("envCredentialRef");
+    expect(source).toContain("UNOROUTER_API_KEY_1");
+  });
+
+  it("does not market vault encryption in workspace settings", () => {
+    const source = readFileSync(
+      new URL("../apps/web/components/workspace-settings.tsx", import.meta.url),
+      "utf8",
+    );
+    expect(source).not.toMatch(/Save & Encrypt Key/);
+    expect(source).not.toMatch(/Confidential Vault Storage/);
+    expect(source).toContain("env:VAR_NAME");
+    expect(source).toContain("Save env:VAR reference");
   });
 });

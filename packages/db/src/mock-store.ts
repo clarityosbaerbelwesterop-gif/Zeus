@@ -4,6 +4,42 @@
 type TableName = string;
 type Row = Record<string, any>;
 
+const CONNECTION_ENV_VARS: Record<string, string> = {
+  unorouter: "UNOROUTER_API_KEY_1",
+  gemini: "GEMINI_API_KEY",
+  github: "GITHUB_TOKEN",
+  neon: "DATABASE_URL",
+  openrouter: "OPENROUTER_API_KEY",
+  vercel: "VERCEL_TOKEN",
+};
+
+export function envCredentialRef(
+  varName: string,
+  env: Record<string, string | undefined> = process.env,
+): { status: "connected" | "not_connected"; secret_ref: string | null } {
+  if (env[varName]) {
+    return { status: "connected", secret_ref: `env:${varName}` };
+  }
+  return { status: "not_connected", secret_ref: null };
+}
+
+function applyHonestConnectionSecrets(
+  table: Row[],
+  env: Record<string, string | undefined> = process.env,
+): void {
+  for (const row of table) {
+    const varName = CONNECTION_ENV_VARS[String(row.provider ?? "")];
+    if (!varName) {
+      row.status = "not_connected";
+      row.secret_ref = null;
+      continue;
+    }
+    const seed = envCredentialRef(varName, env);
+    row.status = seed.status;
+    row.secret_ref = seed.secret_ref;
+  }
+}
+
 const CANONICAL_TEMPLATES = [
   {
     code: "jorge",
@@ -452,11 +488,10 @@ class MockDatabase {
         owner_id: userId,
         provider: "unorouter",
         kind: "api_key",
-        status: "connected",
         scopes: ["chat:completions", "models:all", "routing:adaptive"],
-        secret_ref: "vault:uno_primary_key_prod",
         created_at: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 3),
         updated_at: now,
+        ...envCredentialRef("UNOROUTER_API_KEY_1"),
       },
       {
         id: "conn_gemini_1",
@@ -464,11 +499,10 @@ class MockDatabase {
         owner_id: userId,
         provider: "gemini",
         kind: "api_key",
-        status: "connected",
         scopes: ["models/gemini-3.6-flash", "tools:call", "grounding"],
-        secret_ref: "vault:gemini_live_adapter",
         created_at: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 2),
         updated_at: now,
+        ...envCredentialRef("GEMINI_API_KEY"),
       },
       {
         id: "conn_github_1",
@@ -476,11 +510,10 @@ class MockDatabase {
         owner_id: userId,
         provider: "github",
         kind: "oauth",
-        status: "connected",
         scopes: ["repo", "read:user", "pull_requests:write"],
-        secret_ref: "vault:github_pat_oauth",
         created_at: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 4),
         updated_at: now,
+        ...envCredentialRef("GITHUB_TOKEN"),
       },
       {
         id: "conn_neon_1",
@@ -488,11 +521,10 @@ class MockDatabase {
         owner_id: userId,
         provider: "neon",
         kind: "platform_native",
-        status: "connected",
         scopes: ["database:read_write", "branches:create"],
-        secret_ref: "vault:neon_dsn",
         created_at: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 5),
         updated_at: now,
+        ...envCredentialRef("DATABASE_URL"),
       },
       {
         id: "conn_vercel_1",
@@ -500,11 +532,10 @@ class MockDatabase {
         owner_id: userId,
         provider: "vercel",
         kind: "api_key",
-        status: "not_connected",
         scopes: ["deployments:create"],
-        secret_ref: null,
         created_at: new Date(now.getTime() - 1000 * 60 * 60 * 24 * 1),
         updated_at: now,
+        ...envCredentialRef("VERCEL_TOKEN"),
       },
     ]);
 
@@ -934,6 +965,7 @@ class MockDatabase {
 export const mockDbInstance = new MockDatabase();
 
 export function createMockPgClient() {
+  applyHonestConnectionSecrets(mockDbInstance.getTable("connections"));
   return {
     query: async (queryArg: any, valuesArg?: any[]) => {
       return mockDbInstance.query(queryArg, valuesArg);
