@@ -58,9 +58,7 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
   const canWrite = Boolean(role && can(role, "task.write"));
   const canManage = Boolean(role && can(role, "workspace.manage"));
   const providerReady = Boolean(
-    process.env.UNOROUTER_API_KEY_1 ||
-      process.env.OPENROUTER_API_KEY ||
-      process.env.GEMINI_API_KEY,
+    process.env.UNOROUTER_API_KEY_1 || process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY,
   );
 
   return (

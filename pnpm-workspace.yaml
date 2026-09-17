@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+
+overrides:
+  rollup: 4.63.2
+
+ignoredBuiltDependencies:
+  - core-js
+  - esbuild
+
+allowBuilds:
+  core-js: false
+  esbuild: false

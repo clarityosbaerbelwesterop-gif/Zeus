@@ -144,10 +144,13 @@ class MockDatabase {
         id: wsId,
         organization_id: orgId,
         name: "Zeus Mission Control",
-        description: "Calm AI workspace with specialized teammates that plan, build, design, test and sell.",
+        description:
+          "Calm AI workspace with specialized teammates that plan, build, design, test and sell.",
         objective: "Build and run software workflows with high-leverage AI specialists.",
-        success_criteria: "Complete task tracking, transparent activity logs, durable memory and clear run states.",
-        current_focus: "Coordinating Jorge, Kai, Lora, Simon, and Sara on active project objectives.",
+        success_criteria:
+          "Complete task tracking, transparent activity logs, durable memory and clear run states.",
+        current_focus:
+          "Coordinating Jorge, Kai, Lora, Simon, and Sara on active project objectives.",
         status: "active",
         priority: "high",
         created_by: userId,
@@ -310,7 +313,8 @@ class MockDatabase {
         id: "task_2",
         workspace_id: wsId,
         title: "Review UI responsiveness and design hierarchy",
-        description: "Ensure layout math, typography contrast, and mobile breakpoints match specification.",
+        description:
+          "Ensure layout math, typography contrast, and mobile breakpoints match specification.",
         status: "in_progress",
         priority: "medium",
         assigned_agent: "lora",
@@ -639,7 +643,9 @@ class MockDatabase {
     }
 
     // Handle INSERT
-    const insertMatch = normalizedSql.match(/^insert\s+into\s+"?zeus"?\."?([a-z0-9_]+)"?\s*\((.*?)\)\s*values\s*(.*)/i);
+    const insertMatch = normalizedSql.match(
+      /^insert\s+into\s+"?zeus"?\."?([a-z0-9_]+)"?\s*\((.*?)\)\s*values\s*(.*)/i,
+    );
     if (insertMatch && insertMatch[1] && insertMatch[2] && insertMatch[3]) {
       const tableName = insertMatch[1];
       const colsStr = insertMatch[2];
@@ -703,16 +709,16 @@ class MockDatabase {
       const returningMatch = rest.match(/returning\s+(.*)$/i);
       if (returningMatch && returningMatch[1]) {
         const retCols = returningMatch[1].split(",").map((s) => s.trim().replace(/["']/g, ""));
-        const rows = insertedRows.map((r) =>
-          isArrayMode ? retCols.map((c) => r[c]) : r,
-        );
+        const rows = insertedRows.map((r) => (isArrayMode ? retCols.map((c) => r[c]) : r));
         return { rows, rowCount: rows.length };
       }
       return { rows: [], rowCount: insertedRows.length };
     }
 
     // Handle UPDATE
-    const updateMatch = normalizedSql.match(/^update\s+"?zeus"?\."?([a-z0-9_]+)"?\s+set\s+(.*?)(?:\s+where\s+(.*?))?(?:\s+returning\s+.*)?$/i);
+    const updateMatch = normalizedSql.match(
+      /^update\s+"?zeus"?\."?([a-z0-9_]+)"?\s+set\s+(.*?)(?:\s+where\s+(.*?))?(?:\s+returning\s+.*)?$/i,
+    );
     if (updateMatch && updateMatch[1] && updateMatch[2]) {
       const tableName = updateMatch[1];
       const setClause = updateMatch[2];
@@ -745,7 +751,9 @@ class MockDatabase {
     }
 
     // Handle DELETE
-    const deleteMatch = normalizedSql.match(/^delete\s+from\s+"?zeus"?\."?([a-z0-9_]+)"?(?:\s+where\s+(.*?))?$/i);
+    const deleteMatch = normalizedSql.match(
+      /^delete\s+from\s+"?zeus"?\."?([a-z0-9_]+)"?(?:\s+where\s+(.*?))?$/i,
+    );
     if (deleteMatch && deleteMatch[1]) {
       const tableName = deleteMatch[1];
       const whereClause = deleteMatch[2];
@@ -758,7 +766,9 @@ class MockDatabase {
     }
 
     // Handle SELECT
-    const selectMatch = normalizedSql.match(/^select\s+(.*?)\s+from\s+"?zeus"?\."?([a-z0-9_]+)"?(?:\s+(?:where|order|limit)\b.*)?$/i);
+    const selectMatch = normalizedSql.match(
+      /^select\s+(.*?)\s+from\s+"?zeus"?\."?([a-z0-9_]+)"?(?:\s+(?:where|order|limit)\b.*)?$/i,
+    );
     if (selectMatch && selectMatch[1] && selectMatch[2]) {
       const colsPart = selectMatch[1];
       const tableName = selectMatch[2];
