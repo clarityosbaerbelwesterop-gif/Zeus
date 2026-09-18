@@ -28,6 +28,7 @@ import {
   revokeApiToken,
   saveIntegrationConnection,
   saveUserPreferences,
+  setSkillLifecycle,
   testIntegrationConnection,
   toggleWorkspaceAgent,
   updateMemory,
@@ -410,4 +411,20 @@ export async function revokeApiTokenAction(formData: FormData) {
   await revokeApiToken({ workspaceId, tokenId });
   revalidatePath("/app");
   redirect(workspaceLocation(workspaceId, "settings"));
+}
+
+export async function setSkillLifecycleAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
+  const workspaceId = field(formData, "workspaceId");
+  const decision = field(formData, "decision");
+  if (!["review", "trust", "enable", "disable", "reject"].includes(decision)) {
+    throw new Error("Unknown skill lifecycle decision.");
+  }
+  await setSkillLifecycle({
+    workspaceId,
+    skillId: field(formData, "skillId"),
+    decision: decision as "review" | "trust" | "enable" | "disable" | "reject",
+  });
+  revalidatePath("/app");
+  redirect(workspaceLocation(workspaceId, "skills"));
 }
