@@ -10,12 +10,19 @@ import {
 } from "./index";
 
 export type UnoRouterCredentialSlot = "primary" | "fallback";
+export type UnoRouterModelSlot = "primary" | "fallback";
 type DeclaredCapability = "stream" | "tools" | "structured_output" | "usage" | "cancellation";
+
+export const DEFAULT_UNOROUTER_MODEL = "glm-5.3";
+export const DEFAULT_UNOROUTER_FALLBACK_MODEL = "claude-opus-5";
+
+const VERIFIED_AGENT_MODELS = new Set([DEFAULT_UNOROUTER_MODEL, DEFAULT_UNOROUTER_FALLBACK_MODEL]);
 
 export interface UnoRouterProviderOptions {
   readonly primaryApiKey: string;
   readonly fallbackApiKey?: string;
   readonly model: string;
+  readonly fallbackModel?: string;
   readonly endpoint?: string;
   readonly fetchImpl?: typeof fetch;
   readonly capabilities?: ReadonlySet<DeclaredCapability>;
@@ -213,9 +220,16 @@ function providerError(status: number, code?: string): RuntimeError {
   return new RuntimeError("MODEL_ERROR", `UnoRouter request failed with HTTP ${status}.`);
 }
 
-function mayFailOver(status: number, code?: string): boolean {
-  if (status === 402 || status === 408 || status === 429) return true;
+function mayUseNextCredential(status: number, code?: string): boolean {
+  if (status === 401 || status === 403 || status === 402 || status === 408 || status === 429) {
+    return true;
+  }
   return status >= 500 && !(status === 503 && code === "model_not_found");
+}
+
+function mayUseFallbackModel(status: number, code?: string): boolean {
+  if (status === 408 || status === 429) return true;
+  return status >= 500 || (status === 503 && code === "model_not_found");
 }
 
 async function wait(ms: number, signal: AbortSignal): Promise<void> {
@@ -233,10 +247,20 @@ async function wait(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
+function capabilitiesForModels(models: readonly string[]): Set<DeclaredCapability> {
+  const result = new Set<DeclaredCapability>(["stream", "usage", "cancellation"]);
+  if (models.length > 0 && models.every((model) => VERIFIED_AGENT_MODELS.has(model))) {
+    result.add("tools");
+    result.add("structured_output");
+  }
+  return result;
+}
+
 function capabilitiesFromEnvironment(
   environment: Readonly<Record<string, string | undefined>>,
+  models: readonly string[],
 ): ReadonlySet<DeclaredCapability> {
-  const result = new Set<DeclaredCapability>(["stream", "usage", "cancellation"]);
+  const result = capabilitiesForModels(models);
   const requested =
     environment.ZEUS_UNOROUTER_CAPABILITIES?.split(",")
       .map((item) => item.trim())
@@ -253,11 +277,19 @@ export function createUnoRouterProvider(options: UnoRouterProviderOptions): Mode
   const primary = options.primaryApiKey.trim();
   const fallback = options.fallbackApiKey?.trim();
   const model = options.model.trim();
+  const fallbackModel = options.fallbackModel?.trim();
   if (!primary || !model) return unconfiguredProvider;
   const endpoint = options.endpoint ?? "https://api.unorouter.com/v1/chat/completions";
   const fetcher = options.fetchImpl ?? fetch;
+  const models: readonly { slot: UnoRouterModelSlot; name: string }[] =
+    fallbackModel && fallbackModel !== model
+      ? [
+          { slot: "primary", name: model },
+          { slot: "fallback", name: fallbackModel },
+        ]
+      : [{ slot: "primary", name: model }];
   const capabilities =
-    options.capabilities ?? new Set<DeclaredCapability>(["stream", "usage", "cancellation"]);
+    options.capabilities ?? capabilitiesForModels(models.map((candidate) => candidate.name));
   const credentials: readonly { slot: UnoRouterCredentialSlot; key: string }[] =
     fallback && fallback !== primary
       ? [
@@ -270,7 +302,13 @@ export function createUnoRouterProvider(options: UnoRouterProviderOptions): Mode
     input: ModelInput,
     signal: AbortSignal,
     stream = false,
-  ): Promise<{ response: Response; slot: UnoRouterCredentialSlot; startedAt: number }> {
+  ): Promise<{
+    response: Response;
+    slot: UnoRouterCredentialSlot;
+    modelSlot: UnoRouterModelSlot;
+    model: string;
+    startedAt: number;
+  }> {
     if (input.tools?.length && !capabilities.has("tools")) {
       throw new RuntimeError(
         "MODEL_ERROR",
@@ -285,44 +323,73 @@ export function createUnoRouterProvider(options: UnoRouterProviderOptions): Mode
     }
 
     let lastError: RuntimeError | undefined;
-    for (let index = 0; index < credentials.length; index += 1) {
-      const credential = credentials[index]!;
-      const startedAt = Date.now();
-      let response: Response;
-      try {
-        response = await fetcher(endpoint, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${credential.key}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...requestBody(input, model),
-            ...(stream ? { stream: true } : {}),
-          }),
-          signal,
-        });
-      } catch (error) {
-        if (signal.aborted) throw new RuntimeError("RUN_CANCELLED", "Run cancelled.");
-        const networkError =
-          error instanceof DOMException && error.name === "TimeoutError"
-            ? new RuntimeError("PROVIDER_TIMEOUT", "UnoRouter request timed out.", true)
-            : new RuntimeError("MODEL_ERROR", "UnoRouter network request failed.", true);
-        lastError = networkError;
-        if (index + 1 < credentials.length) continue;
-        throw networkError;
+    modelLoop: for (let modelIndex = 0; modelIndex < models.length; modelIndex += 1) {
+      const candidate = models[modelIndex]!;
+      for (let credentialIndex = 0; credentialIndex < credentials.length; credentialIndex += 1) {
+        const credential = credentials[credentialIndex]!;
+        const startedAt = Date.now();
+        let response: Response;
+        try {
+          response = await fetcher(endpoint, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${credential.key}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              ...requestBody(input, candidate.name),
+              ...(stream ? { stream: true } : {}),
+            }),
+            signal,
+          });
+        } catch (error) {
+          if (signal.aborted) throw new RuntimeError("RUN_CANCELLED", "Run cancelled.");
+          const networkError =
+            error instanceof DOMException && error.name === "TimeoutError"
+              ? new RuntimeError("PROVIDER_TIMEOUT", "UnoRouter request timed out.", true)
+              : new RuntimeError("MODEL_ERROR", "UnoRouter network request failed.", true);
+          lastError = networkError;
+          if (credentialIndex + 1 < credentials.length) continue;
+          if (modelIndex + 1 < models.length) continue modelLoop;
+          throw networkError;
+        }
+
+        if (response.ok) {
+          return {
+            response,
+            slot: credential.slot,
+            modelSlot: candidate.slot,
+            model: candidate.name,
+            startedAt,
+          };
+        }
+
+        const code = await errorCodeOf(response);
+        const failure = providerError(response.status, code);
+        lastError = failure;
+        const retryDelay = response.status === 429 ? retryAfterMs(response) : undefined;
+        await response.body?.cancel().catch(() => undefined);
+
+        if (response.status === 503 && code === "model_not_found") {
+          if (modelIndex + 1 < models.length) continue modelLoop;
+          throw failure;
+        }
+
+        if (
+          credentialIndex + 1 < credentials.length &&
+          mayUseNextCredential(response.status, code)
+        ) {
+          if (retryDelay !== undefined) await wait(retryDelay, signal);
+          continue;
+        }
+
+        if (modelIndex + 1 < models.length && mayUseFallbackModel(response.status, code)) {
+          if (retryDelay !== undefined) await wait(retryDelay, signal);
+          continue modelLoop;
+        }
+
+        throw failure;
       }
-
-      if (response.ok) return { response, slot: credential.slot, startedAt };
-
-      const code = await errorCodeOf(response);
-      const failure = providerError(response.status, code);
-      lastError = failure;
-      const canFallback = index + 1 < credentials.length && mayFailOver(response.status, code);
-      const retryDelay = response.status === 429 ? retryAfterMs(response) : undefined;
-      await response.body?.cancel().catch(() => undefined);
-      if (!canFallback) throw failure;
-      if (retryDelay !== undefined) await wait(retryDelay, signal);
     }
     throw lastError ?? new RuntimeError("MODEL_ERROR", "UnoRouter request failed.");
   }
@@ -332,7 +399,7 @@ export function createUnoRouterProvider(options: UnoRouterProviderOptions): Mode
     configured: true,
     capabilities,
     async generate(input, signal): Promise<ModelOutput> {
-      const { response, slot, startedAt } = await rawRequest(input, signal);
+      const { response, slot, model: servedModel, startedAt } = await rawRequest(input, signal);
       const raw: unknown = await response.json();
       if (!raw || typeof raw !== "object") {
         throw new RuntimeError("MODEL_ERROR", "UnoRouter returned an invalid response.");
@@ -342,7 +409,8 @@ export function createUnoRouterProvider(options: UnoRouterProviderOptions): Mode
       if (!choice) throw new RuntimeError("MODEL_ERROR", "UnoRouter returned no response choice.");
       const text = typeof choice.content === "string" ? choice.content : "";
       const toolCalls = parseToolCalls(input, choice.tool_calls);
-      const responseModel = typeof parsed.model === "string" && parsed.model ? parsed.model : model;
+      const responseModel =
+        typeof parsed.model === "string" && parsed.model ? parsed.model : servedModel;
       return {
         text,
         ...(toolCalls.length ? { toolCalls } : {}),
@@ -404,13 +472,17 @@ export function createUnoRouterProviderFromEnv(
 ): ModelProvider {
   const primaryApiKey = environment.UNOROUTER_API_KEY_1?.trim();
   const fallbackApiKey = environment.UNOROUTER_API_KEY_2?.trim();
-  const model = modelOverride?.trim() || environment.ZEUS_DEFAULT_MODEL?.trim();
-  if (!primaryApiKey || !model) return unconfiguredProvider;
+  const model =
+    modelOverride?.trim() || environment.ZEUS_DEFAULT_MODEL?.trim() || DEFAULT_UNOROUTER_MODEL;
+  const fallbackModel = environment.ZEUS_FALLBACK_MODEL?.trim() || DEFAULT_UNOROUTER_FALLBACK_MODEL;
+  if (!primaryApiKey) return unconfiguredProvider;
+  const models = fallbackModel !== model ? [model, fallbackModel] : [model];
   return createUnoRouterProvider({
     primaryApiKey,
     ...(fallbackApiKey ? { fallbackApiKey } : {}),
     model,
-    capabilities: capabilitiesFromEnvironment(environment),
+    ...(fallbackModel !== model ? { fallbackModel } : {}),
+    capabilities: capabilitiesFromEnvironment(environment, models),
   });
 }
 

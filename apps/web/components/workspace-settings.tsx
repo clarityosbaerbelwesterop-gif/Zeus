@@ -780,50 +780,29 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
               </div>
             </div>
 
-            {/* By Model / Provider */}
+            {/* Internal model routing stays intentionally abstract in the customer UI. */}
             <div className="rounded-[20px] border border-[var(--line)] bg-white/45 p-6">
-              <h3 className="text-sm font-semibold text-[var(--ink)]">Usage by Model & Provider</h3>
+              <h3 className="text-sm font-semibold text-[var(--ink)]">AI Runtime</h3>
               <p className="text-xs text-[var(--muted)]">
-                LLM routing and model distribution breakdown.
+                Zeus routes requests, retries, and failover automatically. Provider and model
+                details remain internal.
               </p>
 
-              <div className="mt-5 space-y-4">
-                {Object.entries(usageStats.byModel).length === 0 ? (
-                  <p className="py-6 text-center text-xs text-[var(--muted)]">
-                    No model telemetry recorded in this timeframe.
-                  </p>
-                ) : (
-                  Object.entries(usageStats.byModel).map(([modelName, stat]) => {
-                    const pct =
-                      usageStats.totalTokens > 0 ? (stat.tokens / usageStats.totalTokens) * 100 : 0;
-                    return (
-                      <div key={modelName} className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span
-                            className="font-medium text-[var(--ink)] truncate max-w-[200px]"
-                            title={modelName}
-                          >
-                            {modelName}
-                          </span>
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono text-[11px] text-[var(--ink)]">
-                              {stat.tokens.toLocaleString()} tok
-                            </span>
-                            <span className="font-mono text-[11px] text-[var(--muted)]">
-                              ${stat.cost.toFixed(4)}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-black/5">
-                          <div
-                            className="h-full rounded-full bg-[var(--ink)] transition-all opacity-70"
-                            style={{ width: `${Math.max(pct, 3)}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-[14px] border border-[var(--line)] bg-white/55 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
+                    Routing
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-[var(--ink)]">Automatic</div>
+                </div>
+                <div className="rounded-[14px] border border-[var(--line)] bg-white/55 p-4">
+                  <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
+                    Resilience
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-[var(--ink)]">
+                    Managed failover
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -848,7 +827,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                   <tr className="border-b border-[var(--line)] text-[11px] uppercase tracking-[0.08em] text-[var(--muted)]">
                     <th className="pb-2.5 font-medium">Timestamp</th>
                     <th className="pb-2.5 font-medium">Agent</th>
-                    <th className="pb-2.5 font-medium">Model / Provider</th>
+                    <th className="pb-2.5 font-medium">Runtime</th>
                     <th className="pb-2.5 font-medium text-right">Input</th>
                     <th className="pb-2.5 font-medium text-right">Output</th>
                     <th className="pb-2.5 font-medium text-right">Latency</th>
@@ -874,7 +853,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                         </td>
                         <td className="py-3">
                           <span className="rounded-md border border-[var(--line)] bg-white/60 px-2 py-0.5 font-mono text-[10px] text-[var(--ink)]">
-                            {rec.model || rec.provider}
+                            Zeus AI
                           </span>
                         </td>
                         <td className="py-3 text-right font-mono text-[var(--ink)]">
