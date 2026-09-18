@@ -165,6 +165,17 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <footer className="border-t border-[var(--line)]">
+        <div className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-4 px-6 py-8 text-xs text-[var(--muted)] md:px-8">
+          <span>ZEUS · Pre-billing product</span>
+          <nav className="flex flex-wrap gap-5" aria-label="Legal">
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
+            <Link href="/data-controls">Data controls</Link>
+          </nav>
+        </div>
+      </footer>
     </main>
   );
 }
