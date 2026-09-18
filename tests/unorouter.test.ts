@@ -1,10 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
-import { createUnoRouterProvider } from "../packages/runtime/src/unorouter";
+import {
+  DEFAULT_UNOROUTER_FALLBACK_MODEL,
+  DEFAULT_UNOROUTER_MODEL,
+  createUnoRouterProvider,
+} from "../packages/runtime/src/unorouter";
 
 const input = {
   system: "Be concise.",
   messages: [{ role: "user" as const, content: "hello" }],
 };
+
+function bodyModel(init?: RequestInit): string | undefined {
+  if (typeof init?.body !== "string") return undefined;
+  return (JSON.parse(init.body) as { model?: string }).model;
+}
 
 describe("UnoRouter provider", () => {
   it("uses the documented endpoint and records only the serving credential slot", async () => {
@@ -31,7 +40,7 @@ describe("UnoRouter provider", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back exactly once for 429 and respects a zero Retry-After", async () => {
+  it("falls back to the secondary credential for a retryable failure", async () => {
     const authorizations: string[] = [];
     const fetchImpl = vi.fn<typeof fetch>((_url, init) => {
       const authorization = new Headers(init?.headers).get("authorization") ?? "";
@@ -63,53 +72,144 @@ describe("UnoRouter provider", () => {
     expect(authorizations).toEqual(["Bearer primary-secret", "Bearer fallback-secret"]);
   });
 
-  it("never uses fallback for authentication or model-not-found failures", async () => {
-    const authFetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ error: { code: "invalid_api_key" } }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-    const authProvider = createUnoRouterProvider({
-      primaryApiKey: "primary-secret",
-      fallbackApiKey: "fallback-secret",
-      model: "test-model",
-      fetchImpl: authFetch as typeof fetch,
+  it("tries the secondary credential on auth failure but does not mask invalid credentials with a model switch", async () => {
+    const attempts: Array<{ authorization: string; model?: string }> = [];
+    const fetchImpl = vi.fn<typeof fetch>((_url, init) => {
+      attempts.push({
+        authorization: new Headers(init?.headers).get("authorization") ?? "",
+        model: bodyModel(init),
+      });
+      return Promise.resolve(
+        new Response(JSON.stringify({ error: { code: "invalid_api_key" } }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
     });
-    await expect(authProvider.generate(input, new AbortController().signal)).rejects.toMatchObject({
-      code: "PROVIDER_AUTH_FAILED",
-    });
-    expect(authFetch).toHaveBeenCalledTimes(1);
-
-    const modelFetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ error: { code: "model_not_found" } }), {
-        status: 503,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-    const modelProvider = createUnoRouterProvider({
-      primaryApiKey: "primary-secret",
-      fallbackApiKey: "fallback-secret",
-      model: "missing-model",
-      fetchImpl: modelFetch as typeof fetch,
-    });
-    await expect(modelProvider.generate(input, new AbortController().signal)).rejects.toMatchObject(
-      {
-        code: "MODEL_ERROR",
-        retryable: false,
-      },
-    );
-    expect(modelFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not claim unverified per-model tool capability", async () => {
     const provider = createUnoRouterProvider({
       primaryApiKey: "primary-secret",
+      fallbackApiKey: "fallback-secret",
+      model: "primary-model",
+      fallbackModel: "backup-model",
+      fetchImpl,
+    });
+
+    await expect(provider.generate(input, new AbortController().signal)).rejects.toMatchObject({
+      code: "PROVIDER_AUTH_FAILED",
+    });
+    expect(attempts).toEqual([
+      { authorization: "Bearer primary-secret", model: "primary-model" },
+      { authorization: "Bearer fallback-secret", model: "primary-model" },
+    ]);
+  });
+
+  it("switches to the fallback model when the primary model is unavailable", async () => {
+    const attempts: Array<{ authorization: string; model?: string }> = [];
+    const fetchImpl = vi.fn<typeof fetch>((_url, init) => {
+      const model = bodyModel(init);
+      attempts.push({
+        authorization: new Headers(init?.headers).get("authorization") ?? "",
+        model,
+      });
+      if (model === "primary-model") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { code: "model_not_found" } }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            model: "backup-model",
+            choices: [{ message: { content: "backup" } }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    });
+    const provider = createUnoRouterProvider({
+      primaryApiKey: "primary-secret",
+      fallbackApiKey: "fallback-secret",
+      model: "primary-model",
+      fallbackModel: "backup-model",
+      fetchImpl,
+    });
+
+    const output = await provider.generate(input, new AbortController().signal);
+    expect(output.text).toBe("backup");
+    expect(output.model).toBe("backup-model");
+    expect(attempts).toEqual([
+      { authorization: "Bearer primary-secret", model: "primary-model" },
+      { authorization: "Bearer primary-secret", model: "backup-model" },
+    ]);
+  });
+
+  it("uses a deterministic credential-then-model failover matrix", async () => {
+    const attempts: Array<{ authorization: string; model?: string }> = [];
+    const fetchImpl = vi.fn<typeof fetch>((_url, init) => {
+      const authorization = new Headers(init?.headers).get("authorization") ?? "";
+      const model = bodyModel(init);
+      attempts.push({ authorization, model });
+
+      if (attempts.length === 1) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { code: "rate_limit" } }), {
+            status: 429,
+            headers: { "Content-Type": "application/json", "Retry-After": "0" },
+          }),
+        );
+      }
+      if (attempts.length === 2) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ error: { code: "upstream_unavailable" } }), {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ choices: [{ message: { content: "recovered" } }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    });
+
+    const provider = createUnoRouterProvider({
+      primaryApiKey: "primary-secret",
+      fallbackApiKey: "fallback-secret",
+      model: "primary-model",
+      fallbackModel: "backup-model",
+      fetchImpl,
+    });
+    const output = await provider.generate(input, new AbortController().signal);
+
+    expect(output.text).toBe("recovered");
+    expect(attempts).toEqual([
+      { authorization: "Bearer primary-secret", model: "primary-model" },
+      { authorization: "Bearer fallback-secret", model: "primary-model" },
+      { authorization: "Bearer primary-secret", model: "backup-model" },
+    ]);
+  });
+
+  it("enables tool capabilities only for the verified Zeus default model pair", async () => {
+    const verified = createUnoRouterProvider({
+      primaryApiKey: "primary-secret",
+      model: DEFAULT_UNOROUTER_MODEL,
+      fallbackModel: DEFAULT_UNOROUTER_FALLBACK_MODEL,
+    });
+    expect(verified.capabilities.has("tools")).toBe(true);
+    expect(verified.capabilities.has("structured_output")).toBe(true);
+
+    const unverified = createUnoRouterProvider({
+      primaryApiKey: "primary-secret",
       model: "test-model",
     });
-    expect(provider.capabilities.has("tools")).toBe(false);
+    expect(unverified.capabilities.has("tools")).toBe(false);
     await expect(
-      provider.generate(
+      unverified.generate(
         {
           ...input,
           tools: [
