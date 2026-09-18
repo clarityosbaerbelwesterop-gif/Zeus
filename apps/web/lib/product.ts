@@ -18,6 +18,8 @@ import {
   plans,
   runSteps,
   runs,
+  skills,
+  skillVersions,
   taskArtifacts,
   taskConversations,
   taskRuns,
@@ -1325,6 +1327,7 @@ export async function workspacePageData(
         usage: [],
         connections: [],
         apiTokens: [],
+        skills: [],
         userPreferences: parseUserPreferences(undefined, account.user.name, account.user.email),
         searchResults: [] as SearchItem[],
         globalSearchResults: [] as SearchItem[],
@@ -1351,6 +1354,7 @@ export async function workspacePageData(
       usageRows,
       connectionRows,
       apiTokenRows,
+      skillRows,
     ] = await Promise.all([
       db.select().from(workspaceAgents).where(eq(workspaceAgents.workspaceId, activeWorkspace.id)),
       db.select().from(agentTemplates),
@@ -1423,6 +1427,33 @@ export async function workspacePageData(
         .from(apiTokens)
         .where(eq(apiTokens.workspaceId, activeWorkspace.id))
         .orderBy(desc(apiTokens.createdAt)),
+      db
+        .select({
+          id: skills.id,
+          slug: skills.slug,
+          name: skills.name,
+          description: skills.description,
+          sourceType: skills.sourceType,
+          trustLevel: skills.trustLevel,
+          status: skills.status,
+          enabled: skills.enabled,
+          currentVersion: skills.currentVersion,
+          testStatus: skillVersions.testStatus,
+          securityStatus: skillVersions.securityStatus,
+          updatedAt: skills.updatedAt,
+        })
+        .from(skills)
+        .leftJoin(
+          skillVersions,
+          and(
+            eq(skillVersions.skillId, skills.id),
+            eq(skillVersions.version, skills.currentVersion),
+          ),
+        )
+        .where(
+          sql`(${skills.workspaceId} = ${activeWorkspace.id} or ${skills.workspaceId} is null)`,
+        )
+        .orderBy(desc(skills.updatedAt)),
     ]);
 
     const participantRows = conversationRows.length
@@ -1523,6 +1554,7 @@ export async function workspacePageData(
       usage: usageRows,
       connections: connectionRows,
       apiTokens: apiTokenRows,
+      skills: skillRows,
       userPreferences,
       searchResults,
       globalSearchResults,
@@ -1854,6 +1886,107 @@ export async function createApiToken(input: {
     });
   });
   return { id, token: token.raw, prefix: token.prefix };
+}
+
+export async function setSkillLifecycle(input: {
+  workspaceId: string;
+  skillId: string;
+  decision: "review" | "trust" | "enable" | "disable" | "reject";
+}): Promise<void> {
+  const account = await bootstrapAccount();
+  await withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "workspace.manage");
+    const skill = (
+      await db
+        .select()
+        .from(skills)
+        .where(
+          and(
+            eq(skills.id, input.skillId),
+            sql`(${skills.workspaceId} = ${input.workspaceId} or ${skills.workspaceId} is null)`,
+          ),
+        )
+        .limit(1)
+    )[0];
+    if (!skill) throw new Error("Skill not found.");
+
+    const version = (
+      await db
+        .select()
+        .from(skillVersions)
+        .where(
+          and(
+            eq(skillVersions.skillId, skill.id),
+            eq(skillVersions.version, skill.currentVersion),
+          ),
+        )
+        .limit(1)
+    )[0];
+
+    const now = new Date();
+    if (input.decision === "enable") {
+      if (
+        skill.trustLevel !== "trusted" ||
+        version?.testStatus !== "passing" ||
+        version?.securityStatus !== "passed"
+      ) {
+        throw new Error("Only trusted skills with passing tests and security review can be enabled.");
+      }
+      await db
+        .update(skills)
+        .set({ enabled: true, status: "active", updatedAt: now })
+        .where(eq(skills.id, skill.id));
+    } else if (input.decision === "disable") {
+      await db
+        .update(skills)
+        .set({ enabled: false, updatedAt: now })
+        .where(eq(skills.id, skill.id));
+    } else if (input.decision === "review") {
+      await db
+        .update(skills)
+        .set({
+          trustLevel: "reviewed",
+          reviewedBy: account.user.id,
+          reviewedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(skills.id, skill.id));
+    } else if (input.decision === "trust") {
+      if (version?.testStatus !== "passing" || version?.securityStatus !== "passed") {
+        throw new Error("A skill must pass tests and security review before it can be trusted.");
+      }
+      await db
+        .update(skills)
+        .set({
+          trustLevel: "trusted",
+          reviewedBy: account.user.id,
+          reviewedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(skills.id, skill.id));
+    } else {
+      await db
+        .update(skills)
+        .set({
+          enabled: false,
+          status: "rejected",
+          trustLevel: "untrusted",
+          reviewedBy: account.user.id,
+          reviewedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(skills.id, skill.id));
+    }
+
+    await recordEvent(db, account, {
+      workspaceId: input.workspaceId,
+      eventType: `skill.${input.decision}`,
+      entityType: "skill",
+      entityId: skill.id,
+      payload: { slug: skill.slug, decision: input.decision },
+      audit: true,
+    });
+  });
 }
 
 export type WorkspaceSearchItem = SearchItem;
