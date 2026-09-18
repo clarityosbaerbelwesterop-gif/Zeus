@@ -126,10 +126,12 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
   let client: any;
   try {
     client = await getPool().connect();
-    await client.query("SET statement_timeout = '3s'");
+    await client.query("BEGIN");
+    await client.query("SET LOCAL statement_timeout = '3s'");
     const result = await client.query(
       "SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'zeus') AS schema_ready, EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'zeus_app' AND rolbypassrls = false) AS role_ready",
     );
+    await client.query("COMMIT");
     const row = result.rows?.[0] ?? {};
     return {
       configured: true,
@@ -138,6 +140,7 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
       applicationRoleReady: Boolean(row.role_ready),
     };
   } catch {
+    await client?.query("ROLLBACK").catch(() => undefined);
     return {
       configured: true,
       reachable: false,
