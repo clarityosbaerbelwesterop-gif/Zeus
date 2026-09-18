@@ -12,6 +12,7 @@ export default defineConfig({
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
     { name: "ipad", use: { ...devices["iPad Pro 11"] } },
+    { name: "mobile", use: { ...devices["iPhone 13"] } },
   ],
   webServer: process.env.ZEUS_E2E_BASE_URL
     ? undefined

@@ -106,6 +106,52 @@ export async function withActor<T>(
   }
 }
 
+export interface DatabaseReadiness {
+  readonly configured: boolean;
+  readonly reachable: boolean;
+  readonly schemaReady: boolean;
+  readonly applicationRoleReady: boolean;
+}
+
+export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
+  if (!process.env.DATABASE_URL) {
+    return {
+      configured: false,
+      reachable: false,
+      schemaReady: false,
+      applicationRoleReady: false,
+    };
+  }
+
+  let client: any;
+  try {
+    client = await getPool().connect();
+    await client.query("BEGIN");
+    await client.query("SET LOCAL statement_timeout = '3s'");
+    const result = await client.query(
+      "SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'zeus') AS schema_ready, EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'zeus_app' AND rolbypassrls = false) AS role_ready",
+    );
+    await client.query("COMMIT");
+    const row = result.rows?.[0] ?? {};
+    return {
+      configured: true,
+      reachable: true,
+      schemaReady: Boolean(row.schema_ready),
+      applicationRoleReady: Boolean(row.role_ready),
+    };
+  } catch {
+    await client?.query("ROLLBACK").catch(() => undefined);
+    return {
+      configured: true,
+      reachable: false,
+      schemaReady: false,
+      applicationRoleReady: false,
+    };
+  } finally {
+    if (client && typeof client.release === "function") client.release();
+  }
+}
+
 export async function closeDatabase(): Promise<void> {
   await pool?.end();
   pool = undefined;

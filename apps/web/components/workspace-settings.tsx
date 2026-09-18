@@ -34,75 +34,32 @@ interface ProviderDefinition {
 const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
   {
     id: "unorouter",
-    name: "UnoRouter High-Throughput",
+    name: "Zeus AI Runtime",
     category: "ai",
     description:
-      "Adaptive multi-model router engineered for high-throughput concurrency and dynamic failover.",
-    defaultScopes: ["chat:completions", "routing:adaptive", "models:all"],
+      "Server-managed AI routing used by Zeus agents. Model selection and provider failover stay internal to the runtime.",
+    defaultScopes: ["chat:completions", "tools:execute", "structured_output"],
     docUrl: "https://unorouter.ai/docs",
     envVar: "UNOROUTER_API_KEY_1",
     kind: "api_key",
   },
   {
-    id: "gemini",
-    name: "Google Gemini Native",
-    category: "ai",
-    description:
-      "Direct access to Gemini 3.6 Flash & Pro models with high-context reasoning and grounding tools.",
-    defaultScopes: ["models/gemini-3.6-flash", "tools:execute", "grounding:google-search"],
-    docUrl: "https://ai.google.dev",
-    envVar: "GEMINI_API_KEY",
-    kind: "api_key",
-  },
-  {
-    id: "openrouter",
-    name: "OpenRouter Aggregator",
-    category: "ai",
-    description:
-      "Unified aggregator gateway providing failover access to 200+ models with one unified endpoint.",
-    defaultScopes: ["openrouter/auto", "chat:completions"],
-    docUrl: "https://openrouter.ai/docs",
-    envVar: "OPENROUTER_API_KEY",
-    kind: "api_key",
-  },
-  {
-    id: "anthropic",
-    name: "Anthropic Claude Direct",
-    category: "ai",
-    description:
-      "Direct Claude 3.5 Sonnet & Haiku access for nuanced architecture and deep security review.",
-    defaultScopes: ["claude-3-5-sonnet", "messages:create"],
-    docUrl: "https://docs.anthropic.com",
-    envVar: "ANTHROPIC_API_KEY",
-    kind: "api_key",
-  },
-  {
-    id: "openai",
-    name: "OpenAI Platform",
-    category: "ai",
-    description: "Direct access to OpenAI GPT-4o, o1, and embeddings models.",
-    defaultScopes: ["gpt-4o", "chat:completions"],
-    docUrl: "https://platform.openai.com",
-    envVar: "OPENAI_API_KEY",
-    kind: "api_key",
-  },
-  {
     id: "github",
-    name: "GitHub Repository Access",
+    name: "GitHub",
     category: "platform",
     description:
-      "Enables Kai to clone repositories, generate pull requests, examine commits, and review diffs.",
+      "Repository access for authorized coding, pull-request, review, and issue workflows.",
     defaultScopes: ["repo", "read:user", "pull_requests:write"],
     docUrl: "https://github.com/settings/tokens",
     envVar: "GITHUB_TOKEN",
-    kind: "oauth",
+    kind: "api_key",
   },
   {
     id: "vercel",
-    name: "Vercel Platform",
+    name: "Vercel",
     category: "platform",
     description:
-      "Deploys preview branches and staging URLs directly for customer demos and automated checks.",
+      "Verified deployment and project access for preview and production engineering workflows.",
     defaultScopes: ["deployments:create", "projects:read"],
     docUrl: "https://vercel.com/account/tokens",
     envVar: "VERCEL_TOKEN",
@@ -110,24 +67,13 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
   },
   {
     id: "neon",
-    name: "Neon Serverless Postgres",
+    name: "Neon",
     category: "database",
-    description:
-      "Provides ephemeral database branch provisioning for isolated agent code test runs.",
-    defaultScopes: ["database:read_write", "branches:create"],
+    description: "Canonical PostgreSQL access used for tenant-isolated Zeus workspace state.",
+    defaultScopes: ["database:read_write"],
     docUrl: "https://neon.tech",
     envVar: "DATABASE_URL",
-    kind: "platform_native",
-  },
-  {
-    id: "custom_mcp",
-    name: "Custom MCP Server (Model Context Protocol)",
-    category: "platform",
-    description: "Connects external tool providers and custom microservice toolkits via JSON-RPC.",
-    defaultScopes: ["tools:list", "tools:call"],
-    docUrl: "https://modelcontextprotocol.io",
-    envVar: "MCP_SERVER_URL",
-    kind: "mcp_remote",
+    kind: "api_key",
   },
 ];
 
@@ -237,7 +183,15 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
 
     startTransition(async () => {
       try {
-        await testIntegrationConnectionAction(formData);
+        const result = await testIntegrationConnectionAction(formData);
+        if (!result.ok) {
+          setTestResult({
+            id: connId,
+            status: "error",
+            message: result.detail,
+          });
+          return;
+        }
         setTestResult({
           id: connId,
           status: "success",
@@ -960,7 +914,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
 
                     <div className="mt-5 border-t border-[var(--line)] pt-3">
                       <div className="flex items-center justify-between">
-                        {isConnected ? (
+                        {conn ? (
                           <div className="flex items-center gap-2">
                             <button
                               id={`btn-test-${prov.id}`}
@@ -1050,7 +1004,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
 
                     <div className="mt-5 border-t border-[var(--line)] pt-3">
                       <div className="flex items-center justify-between">
-                        {isConnected ? (
+                        {conn ? (
                           <div className="flex items-center gap-2">
                             <button
                               id={`btn-test-${prov.id}`}

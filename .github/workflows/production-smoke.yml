@@ -1,0 +1,97 @@
+name: Zeus Production Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zeus-production-smoke
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    environment: production
+    env:
+      ZEUS_URL: https://zeus-web-dun.vercel.app
+      UNOROUTER_API_KEY_1: ${{ secrets.UNOROUTER_API_KEY_1 }}
+      ZEUS_DEFAULT_MODEL: ${{ vars.ZEUS_DEFAULT_MODEL || 'glm-5.3' }}
+
+    steps:
+      - name: Verify canonical UnoRouter with a real model request
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -n "$UNOROUTER_API_KEY_1" ] || { echo "UNOROUTER_API_KEY_1 is missing"; exit 1; }
+          response="$(mktemp)"
+          trap 'rm -f "$response"' EXIT
+          payload="$(jq -cn --arg model "$ZEUS_DEFAULT_MODEL" \
+            '{model:$model,messages:[{role:"user",content:"Reply with OK only."}],max_tokens:8}')"
+          code="$(curl --silent --show-error --connect-timeout 10 --max-time 30 \
+            -o "$response" -w '%{http_code}' \
+            -X POST 'https://api.unorouter.com/v1/chat/completions' \
+            -H "Authorization: Bearer $UNOROUTER_API_KEY_1" \
+            -H 'Content-Type: application/json' \
+            --data "$payload")"
+          case "$code" in
+            2??) ;;
+            *) echo "UnoRouter production probe failed (HTTP $code)"; exit 1 ;;
+          esac
+          jq -e '.choices[0].message' "$response" >/dev/null
+          echo "UnoRouter production probe passed."
+
+      - name: Wait for the current production deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if body="$(curl --fail --silent --show-error --max-time 15 "$ZEUS_URL/api/health" 2>/dev/null)" \
+              && printf '%s' "$body" | jq -e '.aiConfigured == true and .authConfigured == true' >/dev/null; then
+              echo "Production health passed."
+              exit 0
+            fi
+            echo "Health not ready yet (attempt $attempt/30)."
+            sleep 10
+          done
+          echo "Production health did not become ready."
+          exit 1
+
+      - name: Verify fail-closed production readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 18); do
+            if body="$(curl --fail --silent --show-error --max-time 15 "$ZEUS_URL/api/readiness" 2>/dev/null)" \
+              && printf '%s' "$body" | jq -e '
+                .status == "ready"
+                and .database.configured == true
+                and .database.reachable == true
+                and .database.schemaReady == true
+                and .database.applicationRoleReady == true
+                and .authConfigured == true
+                and .aiConfigured == true
+                and .credentialVaultConfigured == true
+              ' >/dev/null; then
+              echo "Production readiness passed."
+              exit 0
+            fi
+            echo "Readiness not ready yet (attempt $attempt/18)."
+            sleep 10
+          done
+          echo "Production readiness did not pass."
+          exit 1
+
+      - name: Verify authenticated application boundary responds
+        shell: bash
+        run: |
+          set -euo pipefail
+          final_url="$(curl --fail --silent --show-error --location --max-time 20 \
+            --output /dev/null --write-out '%{url_effective}' "$ZEUS_URL/app")"
+          case "$final_url" in
+            "$ZEUS_URL"/auth/sign-in*) echo "Unauthenticated /app correctly requires sign-in." ;;
+            *) echo "Unexpected unauthenticated /app destination: $final_url"; exit 1 ;;
+          esac

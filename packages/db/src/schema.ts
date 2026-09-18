@@ -345,6 +345,9 @@ export const workspaceEvents = zeus.table("workspace_events", {
 
 export const connections = zeus.table("connections", {
   id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id")
+    .notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
   workspaceId: uuid("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
@@ -354,6 +357,10 @@ export const connections = zeus.table("connections", {
   status: text("status").notNull(),
   scopes: jsonb("scopes").$type<string[]>().notNull().default([]),
   secretRef: text("secret_ref"),
+  lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  errorCode: text("error_code"),
   ...timestamps,
 });
 

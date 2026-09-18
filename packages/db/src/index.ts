@@ -1,4 +1,10 @@
-export { closeDatabase, withActor, type ActorDatabase } from "./client";
+export {
+  checkDatabaseReadiness,
+  closeDatabase,
+  withActor,
+  type ActorDatabase,
+  type DatabaseReadiness,
+} from "./client";
 export * from "./m4-schema";
 export * from "./runtime-schema";
 export * from "./schema";
