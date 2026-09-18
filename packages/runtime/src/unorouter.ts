@@ -16,10 +16,7 @@ type DeclaredCapability = "stream" | "tools" | "structured_output" | "usage" | "
 export const DEFAULT_UNOROUTER_MODEL = "glm-5.3";
 export const DEFAULT_UNOROUTER_FALLBACK_MODEL = "claude-opus-5";
 
-const VERIFIED_AGENT_MODELS = new Set([
-  DEFAULT_UNOROUTER_MODEL,
-  DEFAULT_UNOROUTER_FALLBACK_MODEL,
-]);
+const VERIFIED_AGENT_MODELS = new Set([DEFAULT_UNOROUTER_MODEL, DEFAULT_UNOROUTER_FALLBACK_MODEL]);
 
 export interface UnoRouterProviderOptions {
   readonly primaryApiKey: string;
@@ -477,8 +474,7 @@ export function createUnoRouterProviderFromEnv(
   const fallbackApiKey = environment.UNOROUTER_API_KEY_2?.trim();
   const model =
     modelOverride?.trim() || environment.ZEUS_DEFAULT_MODEL?.trim() || DEFAULT_UNOROUTER_MODEL;
-  const fallbackModel =
-    environment.ZEUS_FALLBACK_MODEL?.trim() || DEFAULT_UNOROUTER_FALLBACK_MODEL;
+  const fallbackModel = environment.ZEUS_FALLBACK_MODEL?.trim() || DEFAULT_UNOROUTER_FALLBACK_MODEL;
   if (!primaryApiKey) return unconfiguredProvider;
   const models = fallbackModel !== model ? [model, fallbackModel] : [model];
   return createUnoRouterProvider({
