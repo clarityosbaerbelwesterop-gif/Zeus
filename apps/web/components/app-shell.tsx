@@ -13,6 +13,7 @@ import { ActivityView, MemoryView } from "./workspace-memory-activity";
 import { PlansView } from "./workspace-plans";
 import { SearchView } from "./workspace-search";
 import { SettingsView } from "./workspace-settings";
+import { SkillsView } from "./workspace-skills";
 import { participantNames, TeamView } from "./workspace-team";
 import { TasksView } from "./workspace-tasks";
 import { timeLabel, workspaceHref } from "./workspace-ui";
@@ -28,6 +29,7 @@ const viewLabels: Record<string, string> = {
   memory: "Memory",
   activity: "Activity",
   search: "Search",
+  skills: "Skills",
   settings: "Settings & Integrations",
 };
 
@@ -161,6 +163,11 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
             label="Activity"
           />
           <SidebarLink
+            href={workspaceHref(workspace.id, "skills")}
+            active={selectedView === "skills"}
+            label="Skills"
+          />
+          <SidebarLink
             href={workspaceHref(workspace.id, "settings")}
             active={selectedView === "settings"}
             label="Settings & Keys"
@@ -264,6 +271,8 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
             <MemoryView data={data} canWrite={canWrite} />
           ) : selectedView === "activity" ? (
             <ActivityView data={data} />
+          ) : selectedView === "skills" ? (
+            <SkillsView data={data} canManage={canManage} />
           ) : selectedView === "settings" ? (
             <SettingsView data={data} canManage={canManage} />
           ) : selectedView === "search" ? (
