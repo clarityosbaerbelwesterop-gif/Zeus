@@ -365,9 +365,9 @@ export async function testIntegrationConnectionAction(formData: FormData) {
   await assertTrustedMutationOrigin();
   const workspaceId = field(formData, "workspaceId");
   const connectionId = field(formData, "connectionId");
-  await testIntegrationConnection({ workspaceId, connectionId });
+  const result = await testIntegrationConnection({ workspaceId, connectionId });
   revalidatePath("/app");
-  redirect(workspaceLocation(workspaceId, "settings"));
+  return result;
 }
 
 export async function deleteIntegrationConnectionAction(formData: FormData) {
