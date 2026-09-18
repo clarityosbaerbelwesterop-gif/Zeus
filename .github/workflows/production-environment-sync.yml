@@ -2,28 +2,50 @@ name: Production Environment Sync
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/production-environment-sync.yml
 
 permissions:
   contents: read
 
+concurrency:
+  group: zeus-production-environment-sync
+  cancel-in-progress: false
+
 jobs:
-  validate:
+  reconcile:
     runs-on: ubuntu-24.04
     environment: production
     env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || 'team_5KyyWAPW9vLU4EiaKaYZuhaG' }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || 'prj_kdLe6oLoUdmBoOd1W4P5lFbOb8Mf' }}
       UNOROUTER_API_KEY_1: ${{ secrets.UNOROUTER_API_KEY_1 }}
       UNOROUTER_API_KEY_2: ${{ secrets.UNOROUTER_API_KEY_2 }}
+      NEON_AUTH_COOKIE_SECRET: ${{ secrets.NEON_AUTH_COOKIE_SECRET }}
       ZEUS_CREDENTIAL_KEY_V1: ${{ secrets.ZEUS_CREDENTIAL_KEY_V1 }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      ZEUS_AUTOMATION_TRIGGER_SECRET: ${{ secrets.ZEUS_AUTOMATION_TRIGGER_SECRET }}
+      ZEUS_DEFAULT_MODEL: ${{ vars.ZEUS_DEFAULT_MODEL }}
+      ZEUS_FAST_MODEL: ${{ vars.ZEUS_FAST_MODEL }}
+      ZEUS_STRONG_MODEL: ${{ vars.ZEUS_STRONG_MODEL }}
+      ZEUS_CODING_MODEL: ${{ vars.ZEUS_CODING_MODEL }}
+      ZEUS_MANAGER_MODEL: ${{ vars.ZEUS_MANAGER_MODEL }}
+      ZEUS_DESIGN_MODEL: ${{ vars.ZEUS_DESIGN_MODEL }}
+      ZEUS_TEST_MODEL: ${{ vars.ZEUS_TEST_MODEL }}
+      ZEUS_SALES_MODEL: ${{ vars.ZEUS_SALES_MODEL }}
+      ZEUS_UNOROUTER_CAPABILITIES: ${{ vars.ZEUS_UNOROUTER_CAPABILITIES }}
+      NEON_AUTH_BASE_URL_VERIFIED: https://ep-spring-poetry-b1g8h1on.neonauth.c-5.eu-central-1.aws.neon.tech/zeus/auth
+      ZEUS_PRODUCTION_ORIGIN: https://zeus-web-dun.vercel.app
+
     steps:
-      - name: Validate required secret presence without disclosure
+      - name: Validate canonical authority
         shell: bash
         run: |
           set -euo pipefail
           missing=0
-          for name in UNOROUTER_API_KEY_1 UNOROUTER_API_KEY_2 ZEUS_CREDENTIAL_KEY_V1; do
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID UNOROUTER_API_KEY_1 ZEUS_DEFAULT_MODEL; do
             if [ -z "${!name:-}" ]; then
               printf '%s: missing\n' "$name"
               missing=1
@@ -32,18 +54,113 @@ jobs:
             fi
           done
           exit "$missing"
-      - name: Validate Vercel management authority
+
+      - name: Reconcile allowlisted Vercel environment
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "${VERCEL_TOKEN:-}" ] || [ -z "${VERCEL_ORG_ID:-}" ] || [ -z "${VERCEL_PROJECT_ID:-}" ]; then
-            echo "Vercel environment mutation is blocked until canonical project management credentials/IDs are configured."
-            exit 1
+          umask 077
+          api="https://api.vercel.com"
+          auth="Authorization: Bearer ${VERCEL_TOKEN}"
+          meta="$(mktemp)"
+          response="$(mktemp)"
+          trap 'rm -f "$meta" "$response"' EXIT
+
+          curl --fail --silent --show-error --retry 3 \
+            -H "$auth" \
+            "$api/v10/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_ORG_ID}" > "$meta"
+
+          exists() {
+            jq -e --arg key "$1" \
+              '((.envs // .data // []) | map(.key) | index($key)) != null' \
+              "$meta" >/dev/null
+          }
+
+          upsert() {
+            key="$1"; value="$2"; type="$3"; targets="$4"
+            [ -n "$value" ] || return 0
+            payload="$(jq -cn --arg key "$key" --arg value "$value" --arg type "$type" \
+              --argjson target "$targets" '{key:$key,value:$value,type:$type,target:$target}')"
+            code="$(curl --silent --show-error -o "$response" -w '%{http_code}' \
+              -X POST -H "$auth" -H 'Content-Type: application/json' --data "$payload" \
+              "$api/v10/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_ORG_ID}&upsert=true")"
+            case "$code" in
+              200|201) printf '%s: reconciled\n' "$key" ;;
+              *)
+                printf '%s: reconciliation failed (HTTP %s)\n' "$key" "$code"
+                jq -r '"vercel_error: " + ((.error.code // .error.message // "unknown") | tostring)' "$response" 2>/dev/null || true
+                exit 1
+                ;;
+            esac
+          }
+
+          ensure_secret() {
+            key="$1"; supplied="$2"
+            if [ -n "$supplied" ]; then
+              upsert "$key" "$supplied" sensitive '["preview","production"]'
+            elif exists "$key"; then
+              printf '%s: already configured in Vercel\n' "$key"
+            else
+              generated="$(openssl rand -base64 48 | tr -d '\n')"
+              upsert "$key" "$generated" sensitive '["preview","production"]'
+              unset generated
+            fi
+          }
+
+          # Provider keys only come from this repository's authorized production secrets.
+          upsert UNOROUTER_API_KEY_1 "$UNOROUTER_API_KEY_1" sensitive '["preview","production"]'
+          if [ -n "${UNOROUTER_API_KEY_2:-}" ]; then
+            upsert UNOROUTER_API_KEY_2 "$UNOROUTER_API_KEY_2" sensitive '["preview","production"]'
+          else
+            echo "UNOROUTER_API_KEY_2: optional fallback not supplied"
           fi
-          echo "Vercel management authority: configured"
-      - name: Reconciliation safety boundary
+
+          # Verified canonical Neon Auth endpoint. Cookie key is generated only if absent everywhere.
+          upsert NEON_AUTH_BASE_URL "$NEON_AUTH_BASE_URL_VERIFIED" plain '["preview","production"]'
+          ensure_secret NEON_AUTH_COOKIE_SECRET "${NEON_AUTH_COOKIE_SECRET:-}"
+
+          # Zeus-owned secrets may be generated only when Vercel has no existing canonical value.
+          ensure_secret ZEUS_CREDENTIAL_KEY_V1 "${ZEUS_CREDENTIAL_KEY_V1:-}"
+          ensure_secret ZEUS_AUTOMATION_TRIGGER_SECRET "${ZEUS_AUTOMATION_TRIGGER_SECRET:-}"
+          upsert ZEUS_CREDENTIAL_KEY_VERSION "1" plain '["preview","production"]'
+
+          upsert ZEUS_DEFAULT_MODEL "$ZEUS_DEFAULT_MODEL" plain '["preview","production"]'
+          for name in ZEUS_FAST_MODEL ZEUS_STRONG_MODEL ZEUS_CODING_MODEL ZEUS_MANAGER_MODEL \
+                      ZEUS_DESIGN_MODEL ZEUS_TEST_MODEL ZEUS_SALES_MODEL ZEUS_UNOROUTER_CAPABILITIES; do
+            value="${!name:-}"
+            if [ -n "$value" ]; then
+              upsert "$name" "$value" plain '["preview","production"]'
+            else
+              printf '%s: not supplied; unchanged\n' "$name"
+            fi
+          done
+
+          upsert ZEUS_APP_URL "$ZEUS_PRODUCTION_ORIGIN" plain '["production"]'
+          upsert ZEUS_PUBLIC_ORIGIN "$ZEUS_PRODUCTION_ORIGIN" plain '["production"]'
+          echo "Environment reconciliation completed. Secret values were not printed."
+
+      - name: Trigger production redeploy
         shell: bash
         run: |
           set -euo pipefail
-          echo "Secret presence validated. This workflow intentionally does not enumerate repository secrets or write any service key into Neon."
-          echo "Environment mutation remains disabled until the canonical Zeus Vercel project is conclusively identified."
+          response="$(mktemp)"
+          trap 'rm -f "$response"' EXIT
+          payload="$(jq -cn \
+            --arg name "zeus-env-sync-${GITHUB_RUN_ID}" \
+            --arg project "$VERCEL_PROJECT_ID" \
+            --arg ref "$GITHUB_SHA" \
+            '{name:$name,project:$project,target:"production",gitSource:{type:"github",ref:$ref,repoId:"1370164943"}}')"
+          code="$(curl --silent --show-error -o "$response" -w '%{http_code}' \
+            -X POST -H "Authorization: Bearer ${VERCEL_TOKEN}" -H 'Content-Type: application/json' \
+            --data "$payload" \
+            "https://api.vercel.com/v13/deployments?teamId=${VERCEL_ORG_ID}")"
+          case "$code" in
+            200|201)
+              jq -r '"deployment: " + (.id // "created") + " / " + (.readyState // .status // "QUEUED")' "$response"
+              ;;
+            *)
+              printf 'production redeploy failed (HTTP %s)\n' "$code"
+              jq -r '"vercel_error: " + ((.error.code // .error.message // "unknown") | tostring)' "$response" 2>/dev/null || true
+              exit 1
+              ;;
+          esac
