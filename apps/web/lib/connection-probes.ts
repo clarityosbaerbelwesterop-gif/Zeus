@@ -1,17 +1,8 @@
 import { checkDatabaseReadiness } from "@zeus/db";
-import {
-  createUnoRouterProvider,
-  DEFAULT_UNOROUTER_MODEL,
-} from "@zeus/runtime/unorouter";
+import { createUnoRouterProvider, DEFAULT_UNOROUTER_MODEL } from "@zeus/runtime/unorouter";
 
 export type VerifiedConnectionProvider =
-  | "github"
-  | "google_workspace"
-  | "linkedin"
-  | "neon"
-  | "vercel"
-  | "custom"
-  | "unorouter";
+  "github" | "google_workspace" | "linkedin" | "neon" | "vercel" | "custom" | "unorouter";
 
 export type ConnectionProbeStatus = "connected" | "needs_authorization" | "error";
 
@@ -179,7 +170,8 @@ export async function probeConnection(
           ok: true,
           status: "connected",
           code: null,
-          detail: "The canonical Neon database is reachable and the Zeus application schema is ready.",
+          detail:
+            "The canonical Neon database is reachable and the Zeus application schema is ready.",
         };
       }
       return failure("DATABASE_NOT_READY", "The canonical Neon database readiness probe failed.");

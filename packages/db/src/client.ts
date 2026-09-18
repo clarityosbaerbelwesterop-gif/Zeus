@@ -106,7 +106,6 @@ export async function withActor<T>(
   }
 }
 
-
 export interface DatabaseReadiness {
   readonly configured: boolean;
   readonly reachable: boolean;

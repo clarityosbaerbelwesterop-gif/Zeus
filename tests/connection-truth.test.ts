@@ -1,9 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import {
-  isVerifiedConnectionProvider,
-  probeConnection,
-} from "../apps/web/lib/connection-probes";
+import { isVerifiedConnectionProvider, probeConnection } from "../apps/web/lib/connection-probes";
 
 describe("connection truthfulness", () => {
   it("keeps unimplemented MCP/OAuth connections out of connected state", async () => {

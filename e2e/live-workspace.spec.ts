@@ -25,14 +25,21 @@ test("workspace views, selected plans and a persisted conversation survive reloa
   await expect(page.getByRole("heading", { name: "First plan", exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "First plan", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: /^Jorge/u }).first().click();
+  await page
+    .getByRole("link", { name: /^Jorge/u })
+    .first()
+    .click();
   await page
     .getByRole("textbox", { name: "Message", exact: true })
     .fill("Reply with exactly E2E_ACK and do not call a tool.");
   await page.getByRole("button", { name: "Send message" }).click();
-  await expect(page.getByText("Reply with exactly E2E_ACK and do not call a tool.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Reply with exactly E2E_ACK and do not call a tool.", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/E2E_ACK/u).last()).toBeVisible({ timeout: 30_000 });
   await page.reload();
-  await expect(page.getByText("Reply with exactly E2E_ACK and do not call a tool.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Reply with exactly E2E_ACK and do not call a tool.", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText(/E2E_ACK/u).last()).toBeVisible();
 });

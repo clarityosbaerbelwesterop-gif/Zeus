@@ -69,8 +69,7 @@ const SUPPORTED_PROVIDERS: ProviderDefinition[] = [
     id: "neon",
     name: "Neon",
     category: "database",
-    description:
-      "Canonical PostgreSQL access used for tenant-isolated Zeus workspace state.",
+    description: "Canonical PostgreSQL access used for tenant-isolated Zeus workspace state.",
     defaultScopes: ["database:read_write"],
     docUrl: "https://neon.tech",
     envVar: "DATABASE_URL",
