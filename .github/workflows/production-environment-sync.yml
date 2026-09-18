@@ -27,7 +27,8 @@ jobs:
       NEON_AUTH_COOKIE_SECRET: ${{ secrets.NEON_AUTH_COOKIE_SECRET }}
       ZEUS_CREDENTIAL_KEY_V1: ${{ secrets.ZEUS_CREDENTIAL_KEY_V1 }}
       ZEUS_AUTOMATION_TRIGGER_SECRET: ${{ secrets.ZEUS_AUTOMATION_TRIGGER_SECRET }}
-      ZEUS_DEFAULT_MODEL: ${{ vars.ZEUS_DEFAULT_MODEL }}
+      ZEUS_DEFAULT_MODEL: ${{ vars.ZEUS_DEFAULT_MODEL || 'glm-5.3' }}
+      ZEUS_FALLBACK_MODEL: ${{ vars.ZEUS_FALLBACK_MODEL || 'claude-opus-5' }}
       ZEUS_FAST_MODEL: ${{ vars.ZEUS_FAST_MODEL }}
       ZEUS_STRONG_MODEL: ${{ vars.ZEUS_STRONG_MODEL }}
       ZEUS_CODING_MODEL: ${{ vars.ZEUS_CODING_MODEL }}
@@ -35,7 +36,7 @@ jobs:
       ZEUS_DESIGN_MODEL: ${{ vars.ZEUS_DESIGN_MODEL }}
       ZEUS_TEST_MODEL: ${{ vars.ZEUS_TEST_MODEL }}
       ZEUS_SALES_MODEL: ${{ vars.ZEUS_SALES_MODEL }}
-      ZEUS_UNOROUTER_CAPABILITIES: ${{ vars.ZEUS_UNOROUTER_CAPABILITIES }}
+      ZEUS_UNOROUTER_CAPABILITIES: ${{ vars.ZEUS_UNOROUTER_CAPABILITIES || 'tools,structured_output' }}
       NEON_AUTH_BASE_URL_VERIFIED: https://ep-spring-poetry-b1g8h1on.neonauth.c-5.eu-central-1.aws.neon.tech/zeus/auth
       ZEUS_PRODUCTION_ORIGIN: https://zeus-web-dun.vercel.app
 
@@ -45,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID UNOROUTER_API_KEY_1 ZEUS_DEFAULT_MODEL; do
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID UNOROUTER_API_KEY_1; do
             if [ -z "${!name:-}" ]; then
               printf '%s: missing\n' "$name"
               missing=1
@@ -125,6 +126,7 @@ jobs:
           upsert ZEUS_CREDENTIAL_KEY_VERSION "1" plain '["preview","production"]'
 
           upsert ZEUS_DEFAULT_MODEL "$ZEUS_DEFAULT_MODEL" plain '["preview","production"]'
+          upsert ZEUS_FALLBACK_MODEL "$ZEUS_FALLBACK_MODEL" plain '["preview","production"]'
           for name in ZEUS_FAST_MODEL ZEUS_STRONG_MODEL ZEUS_CODING_MODEL ZEUS_MANAGER_MODEL \
                       ZEUS_DESIGN_MODEL ZEUS_TEST_MODEL ZEUS_SALES_MODEL ZEUS_UNOROUTER_CAPABILITIES; do
             value="${!name:-}"
