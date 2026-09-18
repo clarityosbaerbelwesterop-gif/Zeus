@@ -805,6 +805,7 @@ export function SettingsView({ data, canManage }: { data: WorkspacePageData; can
                 </div>
               </div>
             </div>
+          </div>
 
           {/* Detailed Telemetry Log Table */}
           <div className="rounded-[20px] border border-[var(--line)] bg-white/45 p-6">
