@@ -62,6 +62,7 @@ import {
   type WorkspaceContextSnapshot,
   type WorkspaceRole,
 } from "@zeus/workspace";
+import { isVerifiedConnectionProvider, probeConnection } from "./connection-probes";
 import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 interface Actor {
@@ -1624,22 +1625,50 @@ export async function saveIntegrationConnection(input: {
   scopes?: readonly string[] | undefined;
 }) {
   const account = await bootstrapAccount();
+  const provider = input.provider.toLowerCase().trim();
+  if (!isVerifiedConnectionProvider(provider)) {
+    throw new Error("This provider is not supported by the Zeus connection authority.");
+  }
+  const kind = ["oauth", "api_key", "mcp"].includes(input.kind) ? input.kind : "api_key";
+
   return withActor(account.user.id, async (db) => {
     await requireCapability(db, account.user.id, input.workspaceId, "workspace.manage");
-    const now = new Date();
-    const scopes = input.scopes ?? [];
+    const workspace = (
+      await db
+        .select({ organizationId: workspaces.organizationId })
+        .from(workspaces)
+        .where(eq(workspaces.id, input.workspaceId))
+        .limit(1)
+    )[0];
+    if (!workspace) throw new Error("Workspace not found.");
+
+    const existing = input.connectionId
+      ? (
+          await db
+            .select()
+            .from(connections)
+            .where(
+              and(
+                eq(connections.id, input.connectionId),
+                eq(connections.workspaceId, input.workspaceId),
+              ),
+            )
+            .limit(1)
+        )[0]
+      : undefined;
+    if (input.connectionId && !existing) throw new Error("Connection not found.");
+
+    const scopes = [...(input.scopes ?? [])].slice(0, 64);
     const trimmedSecret = input.secret?.trim();
-    let secretRef: string | undefined;
+    let secretRef = existing?.secretRef ?? null;
     if (trimmedSecret) {
-      // Real credential broker only resolves env:VAR refs (see kai-coding-tools).
-      // Never invent synthetic vault:* refs — that fakes persistence.
       if (/^env:[A-Z][A-Z0-9_]{2,127}$/.test(trimmedSecret)) {
         secretRef = trimmedSecret;
       } else if (/^[A-Z][A-Z0-9_]{2,127}$/.test(trimmedSecret)) {
         secretRef = `env:${trimmedSecret}`;
       } else {
         throw new Error(
-          "Integration secrets must be env:VAR_NAME references; raw secrets are not persisted as vault refs.",
+          "Integration secrets must be server-side env:VAR_NAME references; raw secrets are not persisted.",
         );
       }
       if (!process.env[secretRef.slice(4)]) {
@@ -1649,59 +1678,44 @@ export async function saveIntegrationConnection(input: {
       }
     }
 
-    const nextStatus = secretRef
-      ? (input.status ?? "connected")
-      : input.status && input.status !== "connected"
-        ? input.status
-        : "not_connected";
+    const now = new Date();
+    const values = {
+      organizationId: workspace.organizationId,
+      provider,
+      kind,
+      status: "needs_authorization",
+      scopes,
+      secretRef,
+      lastVerifiedAt: null,
+      errorCode: null,
+      updatedAt: now,
+    } as const;
 
-    if (input.connectionId) {
-      await db
-        .update(connections)
-        .set({
-          kind: input.kind,
-          status: nextStatus,
-          scopes: [...scopes],
-          ...(secretRef ? { secretRef } : {}),
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(connections.id, input.connectionId),
-            eq(connections.workspaceId, input.workspaceId),
-          ),
-        );
-      return { id: input.connectionId, status: nextStatus };
+    let id: string;
+    if (existing) {
+      id = existing.id;
+      await db.update(connections).set(values).where(eq(connections.id, existing.id));
+    } else {
+      id = randomUUID();
+      await db.insert(connections).values({
+        id,
+        workspaceId: input.workspaceId,
+        ownerId: account.user.id,
+        createdAt: now,
+        ...values,
+      });
     }
 
-    const id = randomUUID();
-    await db.insert(connections).values({
-      id,
+    await recordEvent(db, account, {
       workspaceId: input.workspaceId,
-      ownerId: account.user.id,
-      provider: input.provider.toLowerCase().trim(),
-      kind: input.kind,
-      status: nextStatus,
-      scopes: [...scopes],
-      secretRef: secretRef ?? null,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await db.insert(workspaceEvents).values({
-      id: randomUUID(),
-      organizationId: account.organizationId,
-      workspaceId: input.workspaceId,
-      actorType: "user",
-      actorId: account.user.id,
       eventType: "connection.configured",
       entityType: "connection",
       entityId: id,
-      safePayload: { provider: input.provider, kind: input.kind },
-      createdAt: now,
+      payload: { provider, kind, status: "needs_authorization" },
+      audit: true,
     });
 
-    return { id, status: nextStatus };
+    return { id, status: "needs_authorization" as const };
   });
 }
 
@@ -1710,8 +1724,9 @@ export async function testIntegrationConnection(input: {
   connectionId: string;
 }) {
   const account = await bootstrapAccount();
-  return withActor(account.user.id, async (db) => {
-    const conn = (
+  const conn = await withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "workspace.manage");
+    const row = (
       await db
         .select()
         .from(connections)
@@ -1723,38 +1738,57 @@ export async function testIntegrationConnection(input: {
         )
         .limit(1)
     )[0];
-    if (!conn) return { ok: false, error: "Connection not found" };
+    if (!row) throw new Error("Connection not found.");
+    return row;
+  });
 
-    const ref = conn.secretRef?.trim() ?? "";
-    if (!ref.startsWith("env:") || !/^[A-Z][A-Z0-9_]{2,127}$/.test(ref.slice(4))) {
-      return {
-        ok: false,
-        error: "Connection has no resolvable env: secret reference",
-        provider: conn.provider,
-        status: conn.status,
-      };
-    }
-    const envKey = ref.slice(4);
-    if (!process.env[envKey]) {
-      await db
-        .update(connections)
-        .set({ status: "error", updatedAt: new Date() })
-        .where(eq(connections.id, conn.id));
-      return {
-        ok: false,
-        error: `Environment variable ${envKey} is not set`,
-        provider: conn.provider,
-        status: "error",
-      };
-    }
+  if (!isVerifiedConnectionProvider(conn.provider)) {
+    throw new Error("This provider has no Zeus capability probe.");
+  }
 
+  await withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "workspace.manage");
     await db
       .update(connections)
-      .set({ status: "connected", updatedAt: new Date() })
+      .set({ status: "verifying", errorCode: null, updatedAt: new Date() })
       .where(eq(connections.id, conn.id));
-
-    return { ok: true, provider: conn.provider, status: "connected" };
   });
+
+  const result = await probeConnection(conn.provider, conn.secretRef);
+  const verifiedAt = new Date();
+
+  await withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "workspace.manage");
+    await db
+      .update(connections)
+      .set({
+        status: result.status,
+        lastVerifiedAt: result.ok ? verifiedAt : null,
+        errorCode: result.code,
+        updatedAt: verifiedAt,
+      })
+      .where(eq(connections.id, conn.id));
+    await recordEvent(db, account, {
+      workspaceId: input.workspaceId,
+      eventType: result.ok ? "connection.verified" : "connection.verification_failed",
+      entityType: "connection",
+      entityId: conn.id,
+      payload: {
+        provider: conn.provider,
+        status: result.status,
+        errorCode: result.code,
+      },
+      audit: true,
+    });
+  });
+
+  return {
+    ok: result.ok,
+    provider: conn.provider,
+    status: result.status,
+    code: result.code,
+    detail: result.detail,
+  };
 }
 
 export async function deleteIntegrationConnection(input: {
