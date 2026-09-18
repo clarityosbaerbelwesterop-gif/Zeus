@@ -255,19 +255,6 @@ export async function draftBusinessAutopilot(input: {
       idempotencyKey: `business-autopilot:${planId}`,
     });
 
-    await db
-      .update(missions)
-      .set({
-        status: allCompleted ? "completed" : "blocked",
-        outcome: {
-          completedTasks: completed.size,
-          totalTasks: graph.length,
-          verified: allCompleted,
-        },
-        ...(allCompleted ? { completedAt: now } : {}),
-        updatedAt: now,
-      })
-      .where(eq(missions.id, mission.id));
     await db.insert(workspaceEvents).values({
       organizationId: workspace.organizationId,
       workspaceId: input.workspaceId,
@@ -471,6 +458,19 @@ export async function approveAndRunBusinessAutopilot(input: {
         updatedAt: now,
       })
       .where(eq(teamRuns.id, input.teamRunId));
+    await db
+      .update(missions)
+      .set({
+        status: allCompleted ? "completed" : "blocked",
+        outcome: {
+          completedTasks: completed.size,
+          totalTasks: graph.length,
+          verified: allCompleted,
+        },
+        ...(allCompleted ? { completedAt: now } : {}),
+        updatedAt: now,
+      })
+      .where(eq(missions.id, mission.id));
     await db.insert(workspaceEvents).values({
       organizationId: workspace.organizationId,
       workspaceId: input.workspaceId,
@@ -500,7 +500,19 @@ export async function businessAutopilotState(workspaceId: string) {
         .orderBy(desc(teamRuns.createdAt))
         .limit(1)
     )[0];
-    if (!latestRun) return { latestRun: null, plan: null, steps: [], members: [] };
+    if (!latestRun) {
+      const company = (
+        await db.select().from(companies).where(eq(companies.workspaceId, workspaceId)).limit(1)
+      )[0];
+      return {
+        latestRun: null,
+        plan: null,
+        mission: null,
+        company: company ?? null,
+        steps: [],
+        members: [],
+      };
+    }
     const planId = latestRun.idempotencyKey.startsWith("business-autopilot:")
       ? latestRun.idempotencyKey.slice("business-autopilot:".length)
       : null;
@@ -512,6 +524,18 @@ export async function businessAutopilotState(workspaceId: string) {
             .where(and(eq(plans.id, planId), eq(plans.workspaceId, workspaceId)))
             .limit(1)
         )[0]
+      : null;
+    const mission = planId
+      ? (
+          await db
+            .select()
+            .from(missions)
+            .where(and(eq(missions.planId, planId), eq(missions.workspaceId, workspaceId)))
+            .limit(1)
+        )[0]
+      : null;
+    const company = mission?.companyId
+      ? (await db.select().from(companies).where(eq(companies.id, mission.companyId)).limit(1))[0]
       : null;
     const steps = plan
       ? await db
@@ -525,6 +549,13 @@ export async function businessAutopilotState(workspaceId: string) {
       .from(teamRunMembers)
       .where(eq(teamRunMembers.teamRunId, latestRun.id))
       .orderBy(asc(teamRunMembers.createdAt));
-    return { latestRun, plan: plan ?? null, steps, members };
+    return {
+      latestRun,
+      plan: plan ?? null,
+      mission: mission ?? null,
+      company: company ?? null,
+      steps,
+      members,
+    };
   });
 }
