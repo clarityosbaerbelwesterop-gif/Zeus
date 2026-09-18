@@ -263,7 +263,13 @@ export async function draftBusinessAutopilot(input: {
       eventType: "autopilot.plan_drafted",
       entityType: "mission",
       entityId: missionId,
-      safePayload: { planId, teamRunId, companyId, businessName, taskCount: AUTOPILOT_TASKS.length },
+      safePayload: {
+        planId,
+        teamRunId,
+        companyId,
+        businessName,
+        taskCount: AUTOPILOT_TASKS.length,
+      },
     });
   });
 

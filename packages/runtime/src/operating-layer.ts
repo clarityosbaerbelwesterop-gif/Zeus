@@ -110,7 +110,10 @@ function optionalBudgetWithin(child: number | undefined, parent: number | undefi
 }
 
 /** Child workers inherit authority by narrowing only. */
-export function assertDelegationNarrows(parent: DelegationEnvelope, child: DelegationEnvelope): void {
+export function assertDelegationNarrows(
+  parent: DelegationEnvelope,
+  child: DelegationEnvelope,
+): void {
   if (!isSubset(child.allowedTools, parent.allowedTools)) {
     throw new Error("Child delegation expands tool permissions.");
   }
