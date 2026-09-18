@@ -21,12 +21,12 @@ describe("connection truthfulness", () => {
     process.env.VERCEL_TOKEN = "test-token";
     try {
       const accepted = await probeConnection("vercel", "env:VERCEL_TOKEN", {
-        fetchImpl: (async () => new Response("{}", { status: 200 })) as typeof fetch,
+        fetchImpl: () => Promise.resolve(new Response("{}", { status: 200 })),
       });
       expect(accepted).toMatchObject({ ok: true, status: "connected" });
 
       const rejected = await probeConnection("vercel", "env:VERCEL_TOKEN", {
-        fetchImpl: (async () => new Response("{}", { status: 401 })) as typeof fetch,
+        fetchImpl: () => Promise.resolve(new Response("{}", { status: 401 })),
       });
       expect(rejected).toMatchObject({
         ok: false,
@@ -44,12 +44,14 @@ describe("connection truthfulness", () => {
     process.env.UNOROUTER_API_KEY_1 = "test-key";
     try {
       const result = await probeConnection("unorouter", "env:UNOROUTER_API_KEY_1", {
-        fetchImpl: (async () =>
-          Response.json({
-            model: "glm-5.3",
-            choices: [{ message: { content: "OK" } }],
-            usage: { prompt_tokens: 1, completion_tokens: 1 },
-          })) as typeof fetch,
+        fetchImpl: () =>
+          Promise.resolve(
+            Response.json({
+              model: "glm-5.3",
+              choices: [{ message: { content: "OK" } }],
+              usage: { prompt_tokens: 1, completion_tokens: 1 },
+            }),
+          ),
       });
       expect(result).toMatchObject({ ok: true, status: "connected" });
     } finally {
