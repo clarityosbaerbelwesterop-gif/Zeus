@@ -2,13 +2,7 @@ import { setSkillLifecycleAction } from "@/app/app/actions";
 import type { WorkspacePageData } from "@/lib/product";
 import { SectionHeader } from "./workspace-ui";
 
-export function SkillsView({
-  data,
-  canManage,
-}: {
-  data: WorkspacePageData;
-  canManage: boolean;
-}) {
+export function SkillsView({ data, canManage }: { data: WorkspacePageData; canManage: boolean }) {
   const workspace = data.activeWorkspace;
   if (!workspace) return null;
 
@@ -27,8 +21,7 @@ export function SkillsView({
       ) : (
         <div className="space-y-3">
           {data.skills.map((skill) => {
-            const ready =
-              skill.testStatus === "passing" && skill.securityStatus === "passed";
+            const ready = skill.testStatus === "passing" && skill.securityStatus === "passed";
             return (
               <article
                 key={skill.id}

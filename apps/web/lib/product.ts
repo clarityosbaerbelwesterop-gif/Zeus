@@ -1915,10 +1915,7 @@ export async function setSkillLifecycle(input: {
         .select()
         .from(skillVersions)
         .where(
-          and(
-            eq(skillVersions.skillId, skill.id),
-            eq(skillVersions.version, skill.currentVersion),
-          ),
+          and(eq(skillVersions.skillId, skill.id), eq(skillVersions.version, skill.currentVersion)),
         )
         .limit(1)
     )[0];
@@ -1930,7 +1927,9 @@ export async function setSkillLifecycle(input: {
         version?.testStatus !== "passing" ||
         version?.securityStatus !== "passed"
       ) {
-        throw new Error("Only trusted skills with passing tests and security review can be enabled.");
+        throw new Error(
+          "Only trusted skills with passing tests and security review can be enabled.",
+        );
       }
       await db
         .update(skills)
