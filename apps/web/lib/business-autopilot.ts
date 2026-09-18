@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { AgentCode } from "@zeus/agents";
 import { requireSession } from "@zeus/auth/server";
 import {
+  companies,
+  missions,
   planSteps,
   plans,
   runtimeRuns,
@@ -110,13 +112,15 @@ export async function draftBusinessAutopilot(input: {
   workspaceId: string;
   businessName: string;
   objective: string;
-}): Promise<{ planId: string; teamRunId: string }> {
+}): Promise<{ planId: string; teamRunId: string; companyId: string; missionId: string }> {
   const userId = await actorId();
   await requireAutopilotAccess(userId, input.workspaceId);
   const businessName = shortTitleSchema.parse(input.businessName.trim());
   const objective = workspaceObjectiveSchema.parse(input.objective);
   const planId = randomUUID();
   const teamRunId = randomUUID();
+  const missionId = randomUUID();
+  let companyId = "";
 
   await withActor(userId, async (db) => {
     const workspace = (
@@ -127,6 +131,31 @@ export async function draftBusinessAutopilot(input: {
         .limit(1)
     )[0];
     if (!workspace) throw new Error("Workspace not found.");
+
+    const existingCompany = (
+      await db
+        .select({ id: companies.id })
+        .from(companies)
+        .where(eq(companies.workspaceId, input.workspaceId))
+        .limit(1)
+    )[0];
+    companyId = existingCompany?.id ?? randomUUID();
+    if (!existingCompany) {
+      await db.insert(companies).values({
+        id: companyId,
+        organizationId: workspace.organizationId,
+        workspaceId: input.workspaceId,
+        createdBy: userId,
+        name: businessName,
+        mission: objective,
+        status: "active",
+      });
+    } else {
+      await db
+        .update(companies)
+        .set({ name: businessName, mission: objective, updatedAt: new Date() })
+        .where(eq(companies.id, companyId));
+    }
 
     await db
       .insert(workspaceAgents)
@@ -146,6 +175,18 @@ export async function draftBusinessAutopilot(input: {
       objective,
       status: "draft",
       createdBy: userId,
+    });
+
+    await db.insert(missions).values({
+      id: missionId,
+      organizationId: workspace.organizationId,
+      workspaceId: input.workspaceId,
+      companyId,
+      planId,
+      createdBy: userId,
+      objective,
+      status: "awaiting_approval",
+      idempotencyKey: `business-autopilot:${planId}`,
     });
 
     const taskIds = new Map<string, string>();
@@ -220,13 +261,19 @@ export async function draftBusinessAutopilot(input: {
       actorType: "system",
       actorId: userId,
       eventType: "autopilot.plan_drafted",
-      entityType: "team_run",
-      entityId: teamRunId,
-      safePayload: { planId, businessName, taskCount: AUTOPILOT_TASKS.length },
+      entityType: "mission",
+      entityId: missionId,
+      safePayload: {
+        planId,
+        teamRunId,
+        companyId,
+        businessName,
+        taskCount: AUTOPILOT_TASKS.length,
+      },
     });
   });
 
-  return { planId, teamRunId };
+  return { planId, teamRunId, companyId, missionId };
 }
 
 async function planGraph(userId: string, workspaceId: string, planId: string): Promise<TeamTask[]> {
@@ -320,8 +367,19 @@ export async function approveAndRunBusinessAutopilot(input: {
         .where(and(eq(plans.id, input.planId), eq(plans.workspaceId, input.workspaceId)))
         .limit(1)
     )[0];
-    if (!teamRun || !plan) throw new Error("Autopilot draft not found.");
-    if (teamRun.status !== "planning" || plan.status !== "draft") {
+    const mission = (
+      await db
+        .select()
+        .from(missions)
+        .where(and(eq(missions.planId, input.planId), eq(missions.workspaceId, input.workspaceId)))
+        .limit(1)
+    )[0];
+    if (!teamRun || !plan || !mission) throw new Error("Autopilot draft not found.");
+    if (
+      teamRun.status !== "planning" ||
+      plan.status !== "draft" ||
+      mission.status !== "awaiting_approval"
+    ) {
       throw new Error("This Autopilot plan has already been approved or is no longer executable.");
     }
     const now = new Date();
@@ -329,6 +387,16 @@ export async function approveAndRunBusinessAutopilot(input: {
       .update(plans)
       .set({ status: "active", updatedAt: now })
       .where(eq(plans.id, input.planId));
+    await db
+      .update(missions)
+      .set({
+        status: "running",
+        approvedBy: userId,
+        approvedAt: now,
+        startedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(missions.id, mission.id));
     await db
       .update(teamRuns)
       .set({ status: "running", startedAt: now, updatedAt: now })
@@ -378,6 +446,14 @@ export async function approveAndRunBusinessAutopilot(input: {
         .limit(1)
     )[0];
     if (!workspace) throw new Error("Workspace not found.");
+    const mission = (
+      await db
+        .select({ id: missions.id })
+        .from(missions)
+        .where(and(eq(missions.planId, input.planId), eq(missions.workspaceId, input.workspaceId)))
+        .limit(1)
+    )[0];
+    if (!mission) throw new Error("Workspace mission not found.");
     const allCompleted = completed.size === graph.length && !failed;
     const now = new Date();
     await db
@@ -388,6 +464,19 @@ export async function approveAndRunBusinessAutopilot(input: {
         updatedAt: now,
       })
       .where(eq(teamRuns.id, input.teamRunId));
+    await db
+      .update(missions)
+      .set({
+        status: allCompleted ? "completed" : "blocked",
+        outcome: {
+          completedTasks: completed.size,
+          totalTasks: graph.length,
+          verified: allCompleted,
+        },
+        ...(allCompleted ? { completedAt: now } : {}),
+        updatedAt: now,
+      })
+      .where(eq(missions.id, mission.id));
     await db.insert(workspaceEvents).values({
       organizationId: workspace.organizationId,
       workspaceId: input.workspaceId,
@@ -417,7 +506,19 @@ export async function businessAutopilotState(workspaceId: string) {
         .orderBy(desc(teamRuns.createdAt))
         .limit(1)
     )[0];
-    if (!latestRun) return { latestRun: null, plan: null, steps: [], members: [] };
+    if (!latestRun) {
+      const company = (
+        await db.select().from(companies).where(eq(companies.workspaceId, workspaceId)).limit(1)
+      )[0];
+      return {
+        latestRun: null,
+        plan: null,
+        mission: null,
+        company: company ?? null,
+        steps: [],
+        members: [],
+      };
+    }
     const planId = latestRun.idempotencyKey.startsWith("business-autopilot:")
       ? latestRun.idempotencyKey.slice("business-autopilot:".length)
       : null;
@@ -429,6 +530,18 @@ export async function businessAutopilotState(workspaceId: string) {
             .where(and(eq(plans.id, planId), eq(plans.workspaceId, workspaceId)))
             .limit(1)
         )[0]
+      : null;
+    const mission = planId
+      ? (
+          await db
+            .select()
+            .from(missions)
+            .where(and(eq(missions.planId, planId), eq(missions.workspaceId, workspaceId)))
+            .limit(1)
+        )[0]
+      : null;
+    const company = mission?.companyId
+      ? (await db.select().from(companies).where(eq(companies.id, mission.companyId)).limit(1))[0]
       : null;
     const steps = plan
       ? await db
@@ -442,6 +555,13 @@ export async function businessAutopilotState(workspaceId: string) {
       .from(teamRunMembers)
       .where(eq(teamRunMembers.teamRunId, latestRun.id))
       .orderBy(asc(teamRunMembers.createdAt));
-    return { latestRun, plan: plan ?? null, steps, members };
+    return {
+      latestRun,
+      plan: plan ?? null,
+      mission: mission ?? null,
+      company: company ?? null,
+      steps,
+      members,
+    };
   });
 }
