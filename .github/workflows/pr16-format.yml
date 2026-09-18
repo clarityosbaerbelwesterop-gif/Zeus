@@ -1,4 +1,5 @@
 name: Temporary PR16 formatter
+# trigger after default-branch registration
 
 on:
   push:
