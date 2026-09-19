@@ -20,6 +20,12 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 export const PLAN_STATUSES = ["draft", "active", "paused", "completed", "cancelled"] as const;
 export type PlanStatus = (typeof PLAN_STATUSES)[number];
 
+export const DEAL_STAGES = ["lead", "qualified", "proposal", "negotiation", "won", "lost"] as const;
+export type DealStage = (typeof DEAL_STAGES)[number];
+
+export const DEAL_STATUSES = ["open", "won", "lost", "archived"] as const;
+export type DealStatus = (typeof DEAL_STATUSES)[number];
+
 export const MEMORY_TYPES = [
   "goal",
   "decision",
@@ -57,6 +63,8 @@ export type WorkspaceCapability =
   | "task.write"
   | "plan.read"
   | "plan.write"
+  | "deal.read"
+  | "deal.write"
   | "conversation.read"
   | "conversation.write"
   | "file.read"
@@ -71,6 +79,7 @@ const viewerCapabilities: readonly WorkspaceCapability[] = [
   "workspace.read",
   "task.read",
   "plan.read",
+  "deal.read",
   "conversation.read",
   "file.read",
   "artifact.read",
@@ -81,6 +90,7 @@ const memberCapabilities: readonly WorkspaceCapability[] = [
   ...viewerCapabilities,
   "task.write",
   "plan.write",
+  "deal.write",
   "conversation.write",
   "file.write",
   "artifact.write",
@@ -140,6 +150,14 @@ export function isTaskStatus(value: string): value is TaskStatus {
 
 export function isTaskPriority(value: string): value is TaskPriority {
   return (TASK_PRIORITIES as readonly string[]).includes(value);
+}
+
+export function isDealStage(value: string): value is DealStage {
+  return (DEAL_STAGES as readonly string[]).includes(value);
+}
+
+export function isDealStatus(value: string): value is DealStatus {
+  return (DEAL_STATUSES as readonly string[]).includes(value);
 }
 
 export function isArtifactType(value: string): value is ArtifactType {

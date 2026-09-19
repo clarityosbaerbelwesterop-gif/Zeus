@@ -461,6 +461,7 @@ class MockDatabase {
     this.tables.set("task_artifacts", []);
     this.tables.set("task_conversations", []);
     this.tables.set("task_runs", []);
+    this.tables.set("deals", []);
 
     // 17. Events
     this.tables.set("workspace_events", [

@@ -5,6 +5,8 @@ import {
   canTransitionTask,
   deriveAgentPresence,
   fileStorageKey,
+  isDealStage,
+  isDealStatus,
   isMemoryType,
   normalizeSearchQuery,
   normalizeSequence,
@@ -16,8 +18,10 @@ describe("Workspace OS permissions", () => {
   it("keeps viewers read only", () => {
     expect(can("viewer", "workspace.read")).toBe(true);
     expect(can("viewer", "task.read")).toBe(true);
+    expect(can("viewer", "deal.read")).toBe(true);
     expect(can("viewer", "file.read")).toBe(true);
     expect(can("viewer", "task.write")).toBe(false);
+    expect(can("viewer", "deal.write")).toBe(false);
     expect(can("viewer", "file.write")).toBe(false);
     expect(can("viewer", "workspace.manage")).toBe(false);
     expect(can("viewer", "member.manage")).toBe(false);
@@ -26,6 +30,7 @@ describe("Workspace OS permissions", () => {
   it("allows members to work without granting administration", () => {
     expect(can("member", "conversation.write")).toBe(true);
     expect(can("member", "memory.write")).toBe(true);
+    expect(can("member", "deal.write")).toBe(true);
     expect(can("member", "workspace.manage")).toBe(false);
     expect(can("admin", "workspace.manage")).toBe(true);
     expect(can("owner", "member.manage")).toBe(true);
@@ -44,6 +49,19 @@ describe("Workspace OS task lifecycle", () => {
   it("rejects status jumps that bypass the workflow", () => {
     expect(canTransitionTask("backlog", "completed")).toBe(false);
     expect(canTransitionTask("ready", "completed")).toBe(false);
+  });
+});
+
+describe("Workspace OS deal pipeline", () => {
+  it("accepts only explicit CRM stages and statuses", () => {
+    for (const stage of ["lead", "qualified", "proposal", "negotiation", "won", "lost"]) {
+      expect(isDealStage(stage)).toBe(true);
+    }
+    for (const status of ["open", "won", "lost", "archived"]) {
+      expect(isDealStatus(status)).toBe(true);
+    }
+    expect(isDealStage("mission")).toBe(false);
+    expect(isDealStatus("running")).toBe(false);
   });
 });
 
