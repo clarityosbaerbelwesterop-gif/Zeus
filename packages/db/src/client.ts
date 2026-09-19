@@ -129,7 +129,7 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
     await client.query("BEGIN");
     await client.query("SET LOCAL statement_timeout = '3s'");
     const result = await client.query(
-      "SELECT
+      `SELECT
         (
           to_regnamespace('zeus') IS NOT NULL
           AND to_regclass('zeus.workspaces') IS NOT NULL
@@ -151,7 +151,7 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
         EXISTS (
           SELECT 1 FROM pg_roles
           WHERE rolname = 'zeus_app' AND rolbypassrls = false
-        ) AS role_ready",
+        ) AS role_ready`,
     );
     await client.query("COMMIT");
     const row = result.rows?.[0] ?? {};
