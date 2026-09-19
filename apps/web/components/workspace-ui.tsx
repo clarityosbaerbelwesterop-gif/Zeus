@@ -1,9 +1,18 @@
 import Link from "next/link";
 import type { WorkspaceSearchItem } from "@/lib/product";
 
-export function workspaceHref(workspaceId: string, view?: string): string {
+export function workspaceHref(
+  workspaceId: string,
+  view?: string,
+  extra?: Record<string, string>,
+): string {
   const params = new URLSearchParams({ workspace: workspaceId });
   if (view && view !== "home") params.set("view", view);
+  if (extra) {
+    for (const [key, value] of Object.entries(extra)) {
+      if (value) params.set(key, value);
+    }
+  }
   return `/app?${params.toString()}`;
 }
 
@@ -63,20 +72,22 @@ export function SearchResult({ result }: { result: WorkspaceSearchItem }) {
       ? workspaceHref(result.workspaceId)
       : result.type === "conversation"
         ? `/app?workspace=${result.workspaceId}&conversation=${result.id}`
-        : result.type === "file"
-          ? `/api/files/${result.id}`
-          : workspaceHref(
-              result.workspaceId,
-              result.type === "memory"
-                ? "memory"
-                : result.type === "artifact"
-                  ? "artifacts"
-                  : result.type === "plan"
-                    ? "plans"
-                    : result.type === "task"
-                      ? "tasks"
-                      : "search",
-            );
+        : result.type === "deal"
+          ? workspaceHref(result.workspaceId, "deal-room", { deal: result.id })
+          : result.type === "file"
+            ? `/api/files/${result.id}`
+            : workspaceHref(
+                result.workspaceId,
+                result.type === "memory"
+                  ? "memory"
+                  : result.type === "artifact"
+                    ? "artifacts"
+                    : result.type === "plan"
+                      ? "plans"
+                      : result.type === "task"
+                        ? "tasks"
+                        : "search",
+              );
   return (
     <Link
       href={href}

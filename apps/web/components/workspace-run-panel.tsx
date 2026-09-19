@@ -21,6 +21,7 @@ export async function RunPanel({
   runId,
   taskId,
   conversationId,
+  dealId,
   view,
   title = "Run",
 }: {
@@ -28,6 +29,7 @@ export async function RunPanel({
   runId?: string | null;
   taskId?: string;
   conversationId?: string;
+  dealId?: string;
   view?: string;
   title?: string;
 }) {
@@ -73,6 +75,7 @@ export async function RunPanel({
               {conversationId ? (
                 <input type="hidden" name="conversationId" value={conversationId} />
               ) : null}
+              {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
               {view ? <input type="hidden" name="view" value={view} /> : null}
               <button className="rounded-full border border-[var(--line)] px-3 py-1 text-[11px] font-medium">
                 Stop
@@ -86,6 +89,7 @@ export async function RunPanel({
               {conversationId ? (
                 <input type="hidden" name="conversationId" value={conversationId} />
               ) : null}
+              {dealId ? <input type="hidden" name="dealId" value={dealId} /> : null}
               {view ? <input type="hidden" name="view" value={view} /> : null}
               <button className="rounded-full bg-[var(--ink)] px-3 py-1 text-[11px] font-medium text-white">
                 Retry

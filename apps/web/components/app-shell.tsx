@@ -5,11 +5,13 @@ import type { WorkspacePageData } from "@/lib/product";
 import { AgentMark } from "./agent-mark";
 import { CommandPalette } from "./command-palette";
 import { ConversationView } from "./workspace-conversation";
+import { DealRoomView } from "./workspace-deal-room";
 import { AutopilotView } from "./workspace-autopilot";
 import { WorkspaceCreateForm } from "./workspace-create-form";
 import { ArtifactsView, FilesView } from "./workspace-files-artifacts";
 import { WorkspaceHome } from "./workspace-home";
 import { ActivityView, MemoryView } from "./workspace-memory-activity";
+import { PipelineView } from "./workspace-pipeline";
 import { PlansView } from "./workspace-plans";
 import { SearchView } from "./workspace-search";
 import { SettingsView } from "./workspace-settings";
@@ -20,6 +22,8 @@ import { timeLabel, workspaceHref } from "./workspace-ui";
 
 const viewLabels: Record<string, string> = {
   home: "Workspace",
+  pipeline: "Pipeline",
+  "deal-room": "Deal-Room",
   autopilot: "Business Autopilot",
   team: "Team",
   tasks: "Tasks",
@@ -58,13 +62,21 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
   });
   const role = data.membershipRole;
   const canWrite = Boolean(role && can(role, "task.write"));
+  const canWriteDeals = Boolean(role && can(role, "deal.write"));
   const canManage = Boolean(role && can(role, "workspace.manage"));
   const providerReady = Boolean(
     process.env.UNOROUTER_API_KEY_1 || process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY,
   );
+  const hideActivityRail = selectedView === "pipeline" || selectedView === "deal-room";
 
   return (
-    <main className="workspace-grid grid min-h-screen grid-cols-[252px_minmax(0,1fr)_300px] bg-[var(--paper)]">
+    <main
+      className={`workspace-grid grid min-h-screen bg-[var(--paper)] ${
+        hideActivityRail
+          ? "grid-cols-[252px_minmax(0,1fr)]"
+          : "grid-cols-[252px_minmax(0,1fr)_300px]"
+      }`}
+    >
       <aside className="workspace-sidebar border-r border-[var(--line)] p-4 md:p-5">
         <div className="mb-5 flex items-center justify-between gap-2">
           <Link href="/" className="text-sm font-semibold tracking-[0.08em]">
@@ -131,6 +143,20 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
             href={workspaceHref(workspace.id, "team")}
             active={selectedView === "team"}
             label="Team"
+          />
+          <SidebarLink
+            href={workspaceHref(workspace.id, "pipeline")}
+            active={selectedView === "pipeline"}
+            label="Pipeline"
+          />
+          <SidebarLink
+            href={
+              data.activeDeal
+                ? workspaceHref(workspace.id, "deal-room", { deal: data.activeDeal.id })
+                : workspaceHref(workspace.id, "deal-room")
+            }
+            active={selectedView === "deal-room"}
+            label="Deal-Room"
           />
           <SidebarLink
             href={workspaceHref(workspace.id, "tasks")}
@@ -259,6 +285,10 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
               directConversationByAgent={directConversationByAgent}
               canManage={canManage}
             />
+          ) : selectedView === "pipeline" ? (
+            <PipelineView data={data} canWrite={canWriteDeals} />
+          ) : selectedView === "deal-room" ? (
+            <DealRoomView data={data} />
           ) : selectedView === "tasks" ? (
             <TasksView data={data} canWrite={canWrite} />
           ) : selectedView === "plans" ? (
@@ -283,53 +313,57 @@ export function AppShell({ data }: { data: WorkspacePageData }) {
         </div>
       </section>
 
-      <aside className="activity-rail border-l border-[var(--line)] p-5 xl:p-6">
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">Now</p>
-          <span className="size-2 rounded-full bg-[#8f8b82]" />
-        </div>
-        <p className="mt-5 text-sm font-medium">
-          {workspace.currentFocus || workspace.objective || "No current focus set."}
-        </p>
-        <div className="mt-8 space-y-4">
-          {data.agents
-            .filter((agent) => agent.enabled)
-            .map((agent) => (
-              <div key={agent.code} className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-2">
-                  <AgentMark
-                    agent={{
-                      code: agent.code as AgentCode,
-                      name: agent.name,
-                      accent: agent.accent,
-                    }}
-                    size={28}
-                  />
-                  <span className="truncate text-sm">{agent.name}</span>
-                </div>
-                <span className="text-xs capitalize text-[var(--muted)]">{agent.presence}</span>
-              </div>
-            ))}
-        </div>
-        <div className="mt-8 border-t border-[var(--line)] pt-5">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
-            Recent activity
-          </p>
-          <div className="mt-4 space-y-4">
-            {data.activity.slice(0, 5).map((event) => (
-              <div key={event.id}>
-                <p className="text-xs font-medium">{event.eventType.replaceAll(".", " ")}</p>
-                <p className="mt-1 text-[11px] text-[var(--muted)]">{timeLabel(event.createdAt)}</p>
-              </div>
-            ))}
-            {!data.activity.length ? (
-              <p className="text-xs leading-5 text-[var(--muted)]">
-                Real workspace events will appear here.
-              </p>
-            ) : null}
+      {!hideActivityRail ? (
+        <aside className="activity-rail border-l border-[var(--line)] p-5 xl:p-6">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">Now</p>
+            <span className="size-2 rounded-full bg-[#8f8b82]" />
           </div>
-        </div>
-      </aside>
+          <p className="mt-5 text-sm font-medium">
+            {workspace.currentFocus || workspace.objective || "No current focus set."}
+          </p>
+          <div className="mt-8 space-y-4">
+            {data.agents
+              .filter((agent) => agent.enabled)
+              .map((agent) => (
+                <div key={agent.code} className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <AgentMark
+                      agent={{
+                        code: agent.code as AgentCode,
+                        name: agent.name,
+                        accent: agent.accent,
+                      }}
+                      size={28}
+                    />
+                    <span className="truncate text-sm">{agent.name}</span>
+                  </div>
+                  <span className="text-xs capitalize text-[var(--muted)]">{agent.presence}</span>
+                </div>
+              ))}
+          </div>
+          <div className="mt-8 border-t border-[var(--line)] pt-5">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted)]">
+              Recent activity
+            </p>
+            <div className="mt-4 space-y-4">
+              {data.activity.slice(0, 5).map((event) => (
+                <div key={event.id}>
+                  <p className="text-xs font-medium">{event.eventType.replaceAll(".", " ")}</p>
+                  <p className="mt-1 text-[11px] text-[var(--muted)]">
+                    {timeLabel(event.createdAt)}
+                  </p>
+                </div>
+              ))}
+              {!data.activity.length ? (
+                <p className="text-xs leading-5 text-[var(--muted)]">
+                  Real workspace events will appear here.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </aside>
+      ) : null}
     </main>
   );
 }

@@ -27,6 +27,9 @@ export function CommandPalette({ workspaceId, agents }: CommandPaletteProps) {
   const commands = useMemo(
     () => [
       { label: "Workspace home", href: `/app?workspace=${workspaceId}` },
+      { label: "Pipeline", href: `/app?workspace=${workspaceId}&view=pipeline` },
+      { label: "Deal-Room", href: `/app?workspace=${workspaceId}&view=deal-room` },
+      { label: "New deal", href: `/app?workspace=${workspaceId}&view=pipeline#new-deal` },
       { label: "New task", href: `/app?workspace=${workspaceId}&view=tasks#new-task` },
       { label: "New conversation", href: `/app?workspace=${workspaceId}&view=team#team-chat` },
       { label: "Upload file", href: `/app?workspace=${workspaceId}&view=files#upload-file` },

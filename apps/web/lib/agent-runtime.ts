@@ -5,6 +5,7 @@ import {
   artifacts,
   connections,
   conversations,
+  deals,
   memoryEntries,
   messages,
   planSteps,
@@ -1658,6 +1659,80 @@ export async function startTaskRun(workspaceId: string, taskId: string): Promise
       taskId,
       idempotencyKey: `task:${taskId}:${randomUUID()}`,
       triggerType: "task_execute",
+    },
+    runtimeStore(actorId),
+  );
+  await executePersistedRun(run);
+  return run.id;
+}
+
+export async function startDealAgentRun(
+  workspaceId: string,
+  dealId: string,
+  instruction: string,
+  agentCode?: AgentCode | null,
+): Promise<string> {
+  const session = await requireSession();
+  const actorId = actorIdFromSession(session);
+  const text = messageSchema.parse(instruction);
+  const prepared = await withActor(actorId, async (db) => {
+    await requireWorkspaceCapability(db, actorId, workspaceId, "deal.write");
+    const deal = (
+      await db
+        .select()
+        .from(deals)
+        .where(and(eq(deals.id, dealId), eq(deals.workspaceId, workspaceId)))
+        .limit(1)
+    )[0];
+    if (!deal) throw new RuntimeError("TOOL_INPUT_INVALID", "Deal not found.");
+    if (!deal.conversationId) {
+      throw new RuntimeError("TOOL_INPUT_INVALID", "Deal thread is missing.");
+    }
+    const enabledCodes = (
+      await db
+        .select({ agentCode: workspaceAgents.agentCode })
+        .from(workspaceAgents)
+        .where(eq(workspaceAgents.workspaceId, workspaceId))
+    ).map((row) => row.agentCode);
+    const preferred =
+      agentCode && AGENT_CODES.has(agentCode) && enabledCodes.includes(agentCode)
+        ? agentCode
+        : enabledCodes.includes("sara")
+          ? "sara"
+          : enabledCodes[0];
+    if (!preferred || !AGENT_CODES.has(preferred as AgentCode)) {
+      throw new RuntimeError("TOOL_INPUT_INVALID", "Assigned agent is not enabled.");
+    }
+    const requested = preferred as AgentCode;
+    const organizationId = await workspaceOrganization(db, workspaceId);
+    const messageId = randomUUID();
+    await db.insert(messages).values({
+      id: messageId,
+      conversationId: deal.conversationId,
+      authorId: actorId,
+      role: "user",
+      kind: "message",
+      content: text,
+      status: "complete",
+    });
+    return {
+      organizationId,
+      agent: requested,
+      conversationId: deal.conversationId,
+      messageId,
+    };
+  });
+  const run = await startRun(
+    {
+      organizationId: prepared.organizationId,
+      workspaceId,
+      actorId,
+      agent: prepared.agent,
+      objective: text,
+      type: "conversation_run",
+      conversationId: prepared.conversationId,
+      idempotencyKey: `deal:${dealId}:${prepared.messageId}`,
+      triggerType: "conversation_message",
     },
     runtimeStore(actorId),
   );

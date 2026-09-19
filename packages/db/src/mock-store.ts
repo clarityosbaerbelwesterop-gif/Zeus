@@ -225,6 +225,9 @@ class MockDatabase {
     const convLora = "conv_direct_lora";
     const convSimon = "conv_direct_simon";
     const convSara = "conv_direct_sara";
+    const convDealNordlicht = "conv_deal_nordlicht";
+    const convDealHafen = "conv_deal_hafen";
+    const convDealAtelier = "conv_deal_atelier";
 
     this.tables.set("conversations", [
       {
@@ -287,6 +290,36 @@ class MockDatabase {
         created_at: now,
         updated_at: now,
       },
+      {
+        id: convDealNordlicht,
+        workspace_id: wsId,
+        type: "team",
+        title: "Nordlicht Maschinenbau",
+        agent_code: null,
+        created_by: userId,
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: convDealHafen,
+        workspace_id: wsId,
+        type: "team",
+        title: "Hafen Logistik",
+        agent_code: null,
+        created_by: userId,
+        created_at: now,
+        updated_at: now,
+      },
+      {
+        id: convDealAtelier,
+        workspace_id: wsId,
+        type: "team",
+        title: "Atelier West",
+        agent_code: null,
+        created_by: userId,
+        created_at: now,
+        updated_at: now,
+      },
     ]);
 
     // 9. Conversation Participants
@@ -299,6 +332,10 @@ class MockDatabase {
     participants.push({ conversation_id: convLora, agent_code: "lora" });
     participants.push({ conversation_id: convSimon, agent_code: "simon" });
     participants.push({ conversation_id: convSara, agent_code: "sara" });
+    participants.push({ conversation_id: convDealNordlicht, agent_code: "sara" });
+    participants.push({ conversation_id: convDealNordlicht, agent_code: "jorge" });
+    participants.push({ conversation_id: convDealHafen, agent_code: "sara" });
+    participants.push({ conversation_id: convDealAtelier, agent_code: "sara" });
     this.tables.set("conversation_participants", participants);
 
     // 10. Messages
@@ -326,6 +363,29 @@ class MockDatabase {
           "Repository structure and environment constraints are loaded. Ready to build features or run tests.",
         status: "complete",
         created_at: new Date(now.getTime() - 1000 * 60 * 10),
+      },
+      {
+        id: "msg_deal_nordlicht_1",
+        conversation_id: convDealNordlicht,
+        role: "user",
+        kind: "message",
+        agent_code: null,
+        run_id: null,
+        content: "Qualify the Nordlicht opportunity and name the next commercial step.",
+        status: "complete",
+        created_at: new Date(now.getTime() - 1000 * 60 * 40),
+      },
+      {
+        id: "msg_deal_nordlicht_2",
+        conversation_id: convDealNordlicht,
+        role: "assistant",
+        kind: "message",
+        agent_code: "sara",
+        run_id: "run_deal_nordlicht_1",
+        content:
+          "Budget is confirmed. Next step: send a scoped proposal covering rollout and support.",
+        status: "complete",
+        created_at: new Date(now.getTime() - 1000 * 60 * 35),
       },
     ]);
 
@@ -452,8 +512,35 @@ class MockDatabase {
     ]);
 
     // 15. Runs & Run Steps
-    this.tables.set("runs", []);
-    this.tables.set("run_steps", []);
+    this.tables.set("runs", [
+      {
+        id: "run_deal_nordlicht_1",
+        organization_id: orgId,
+        workspace_id: wsId,
+        conversation_id: convDealNordlicht,
+        agent_code: "sara",
+        run_type: "conversation_run",
+        trigger_type: "conversation_message",
+        status: "completed",
+        objective: "Qualify Nordlicht Maschinenbau and name the next commercial step.",
+        created_by: userId,
+        started_at: new Date(now.getTime() - 1000 * 60 * 40),
+        completed_at: new Date(now.getTime() - 1000 * 60 * 35),
+        created_at: new Date(now.getTime() - 1000 * 60 * 40),
+        updated_at: new Date(now.getTime() - 1000 * 60 * 35),
+      },
+    ]);
+    this.tables.set("run_steps", [
+      {
+        id: "run_step_deal_nordlicht_1",
+        run_id: "run_deal_nordlicht_1",
+        ordinal: 0,
+        status: "completed",
+        title: "Qualify commercial fit",
+        safe_detail: "Budget confirmed. Proposal is the next agent step.",
+        created_at: new Date(now.getTime() - 1000 * 60 * 38),
+      },
+    ]);
 
     // 16. Files & Artifacts
     this.tables.set("workspace_files", []);
@@ -461,7 +548,47 @@ class MockDatabase {
     this.tables.set("task_artifacts", []);
     this.tables.set("task_conversations", []);
     this.tables.set("task_runs", []);
-    this.tables.set("deals", []);
+    this.tables.set("deals", [
+      {
+        id: "deal_nordlicht",
+        workspace_id: wsId,
+        title: "Nordlicht Maschinenbau",
+        stage: "qualified",
+        value_cents: 1_850_000,
+        currency: "EUR",
+        owner_user_id: userId,
+        conversation_id: convDealNordlicht,
+        status: "open",
+        created_at: new Date(now.getTime() - 1000 * 60 * 60 * 26),
+        updated_at: now,
+      },
+      {
+        id: "deal_hafen",
+        workspace_id: wsId,
+        title: "Hafen Logistik",
+        stage: "proposal",
+        value_cents: 4_200_000,
+        currency: "EUR",
+        owner_user_id: userId,
+        conversation_id: convDealHafen,
+        status: "open",
+        created_at: new Date(now.getTime() - 1000 * 60 * 60 * 18),
+        updated_at: now,
+      },
+      {
+        id: "deal_atelier",
+        workspace_id: wsId,
+        title: "Atelier West",
+        stage: "lead",
+        value_cents: null,
+        currency: null,
+        owner_user_id: userId,
+        conversation_id: convDealAtelier,
+        status: "open",
+        created_at: new Date(now.getTime() - 1000 * 60 * 60 * 6),
+        updated_at: now,
+      },
+    ]);
 
     // 17. Events
     this.tables.set("workspace_events", [

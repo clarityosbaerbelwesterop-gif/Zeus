@@ -24,12 +24,19 @@ export function WorkspaceHome({ data }: { data: WorkspacePageData }) {
         }
       />
 
-      <div className="workspace-summary-grid grid gap-3 sm:grid-cols-3">
+      <div className="workspace-summary-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
           label="Team"
           value={`${data.agents.filter((agent) => agent.enabled).length} enabled`}
           detail={`${activeRuns.length} active / waiting runs`}
         />
+        <Link href={workspaceHref(workspace.id, "pipeline")} className="block">
+          <SummaryCard
+            label="Pipeline"
+            value={`${data.deals.length} deals`}
+            detail="Phasen, Wert, nächster Agent-Schritt"
+          />
+        </Link>
         <SummaryCard
           label="Tasks"
           value={`${activeTasks.length} open`}
@@ -55,12 +62,20 @@ export function WorkspaceHome({ data }: { data: WorkspacePageData }) {
                   "Choose the next important thing"}
               </h2>
             </div>
-            <Link
-              href={workspaceHref(workspace.id, "plans")}
-              className="text-xs text-[var(--muted)] underline underline-offset-4"
-            >
-              Plans
-            </Link>
+            <div className="flex shrink-0 items-center gap-3">
+              <Link
+                href={workspaceHref(workspace.id, "pipeline")}
+                className="text-xs text-[var(--muted)] underline underline-offset-4"
+              >
+                Pipeline
+              </Link>
+              <Link
+                href={workspaceHref(workspace.id, "plans")}
+                className="text-xs text-[var(--muted)] underline underline-offset-4"
+              >
+                Plans
+              </Link>
+            </div>
           </div>
           {data.activePlan ? (
             <div className="mt-5 border-t border-[var(--line)] pt-4">
