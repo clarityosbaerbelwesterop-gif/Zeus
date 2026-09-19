@@ -174,4 +174,27 @@ describe("product-path regressions", () => {
     expect(source).toContain("env:VAR_NAME");
     expect(source).toContain("Save env:VAR reference");
   });
+
+  it("keeps deal API mutations origin-checked and fail-closed", () => {
+    const list = readFileSync(
+      new URL("../apps/web/app/api/deals/route.ts", import.meta.url),
+      "utf8",
+    );
+    const item = readFileSync(
+      new URL("../apps/web/app/api/deals/[id]/route.ts", import.meta.url),
+      "utf8",
+    );
+    const helpers = readFileSync(new URL("../apps/web/lib/product.ts", import.meta.url), "utf8");
+    expect(list).toContain("assertTrustedMutationOrigin");
+    expect(item).toContain("assertTrustedMutationOrigin");
+    expect(list).toContain("dealRequestError");
+    expect(item).toContain("dealRequestError");
+    expect(helpers).toContain(
+      'requireCapability(db, account.user.id, input.workspaceId, "deal.write")',
+    );
+    expect(helpers).toContain(
+      'requireCapability(db, account.user.id, row.workspaceId, "deal.read")',
+    );
+    expect(helpers).not.toMatch(/deal_mission|missionId|mission_type/u);
+  });
 });

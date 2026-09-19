@@ -9,6 +9,7 @@ import {
   connections,
   conversationParticipants,
   conversations,
+  deals,
   fileObjects,
   memoryEntries,
   messages,
@@ -48,6 +49,8 @@ import {
   deriveAgentPresence,
   fileStorageKey,
   isArtifactType,
+  isDealStage,
+  isDealStatus,
   isMemoryType,
   isTaskPriority,
   isTaskStatus,
@@ -57,6 +60,8 @@ import {
   safeFileName,
   validateUpload,
   type ArtifactType,
+  type DealStage,
+  type DealStatus,
   type MemoryType,
   type TaskPriority,
   type TaskStatus,
@@ -703,6 +708,218 @@ export async function addPlanStep(input: {
     });
   });
   return stepId;
+}
+
+export interface DealRecord {
+  id: string;
+  workspaceId: string;
+  title: string;
+  stage: DealStage;
+  valueCents: number | null;
+  currency: string | null;
+  ownerUserId: string;
+  conversationId: string | null;
+  status: DealStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function toDealRecord(row: {
+  id: string;
+  workspaceId: string;
+  title: string;
+  stage: string;
+  valueCents: number | null;
+  currency: string | null;
+  ownerUserId: string;
+  conversationId: string | null;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): DealRecord {
+  if (!isDealStage(row.stage) || !isDealStatus(row.status)) {
+    throw new Error("Deal has an invalid persisted state.");
+  }
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    title: row.title,
+    stage: row.stage,
+    valueCents: row.valueCents,
+    currency: row.currency,
+    ownerUserId: row.ownerUserId,
+    conversationId: row.conversationId,
+    status: row.status,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
+function parseDealValueCents(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (!Number.isInteger(value) || value < 0 || value > 2_147_483_647) {
+    throw new Error("Invalid deal value.");
+  }
+  return value;
+}
+
+function parseDealCurrency(
+  value: string | null | undefined,
+  valueCents: number | null,
+): string | null {
+  const currency = value?.trim() ?? "";
+  if (!currency) return valueCents === null ? null : "USD";
+  if (!/^[A-Z]{3}$/u.test(currency)) throw new Error("Invalid currency.");
+  return currency;
+}
+
+async function requireDealOwnerMembership(
+  db: ActorDatabase,
+  workspaceId: string,
+  ownerUserId: string,
+): Promise<void> {
+  const membership = (
+    await db
+      .select({ userId: workspaceMembers.userId })
+      .from(workspaceMembers)
+      .where(
+        and(
+          eq(workspaceMembers.workspaceId, workspaceId),
+          eq(workspaceMembers.userId, ownerUserId),
+        ),
+      )
+      .limit(1)
+  )[0];
+  if (!membership) throw new Error("Deal owner must be a workspace member.");
+}
+
+async function requireDealConversation(
+  db: ActorDatabase,
+  workspaceId: string,
+  conversationId: string | null | undefined,
+): Promise<string | null> {
+  if (!conversationId) return null;
+  const conversation = (
+    await db.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1)
+  )[0];
+  if (!conversation || conversation.workspaceId !== workspaceId) {
+    throw new Error("Conversation not found.");
+  }
+  return conversation.id;
+}
+
+export async function createDeal(input: {
+  workspaceId: string;
+  title: string;
+  stage?: string;
+  valueCents?: number | null;
+  currency?: string | null;
+  ownerUserId?: string | null;
+  conversationId?: string | null;
+  status?: string;
+}): Promise<string> {
+  const account = await bootstrapAccount();
+  const title = shortTitleSchema.parse(input.title);
+  const stage = input.stage ?? "lead";
+  const status = input.status ?? "open";
+  if (!isDealStage(stage)) throw new Error("Unknown deal stage.");
+  if (!isDealStatus(status)) throw new Error("Unknown deal status.");
+  const valueCents = parseDealValueCents(input.valueCents);
+  const currency = parseDealCurrency(input.currency, valueCents);
+  const dealId = randomUUID();
+  await withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "deal.write");
+    const ownerUserId = input.ownerUserId?.trim() || account.user.id;
+    await requireDealOwnerMembership(db, input.workspaceId, ownerUserId);
+    const conversationId = await requireDealConversation(
+      db,
+      input.workspaceId,
+      input.conversationId,
+    );
+    await db.insert(deals).values({
+      id: dealId,
+      workspaceId: input.workspaceId,
+      title,
+      stage,
+      valueCents,
+      currency,
+      ownerUserId,
+      conversationId,
+      status,
+    });
+    await recordEvent(db, account, {
+      workspaceId: input.workspaceId,
+      eventType: "deal.created",
+      entityType: "deal",
+      entityId: dealId,
+      payload: { stage, status, conversationId },
+    });
+  });
+  return dealId;
+}
+
+export async function listDeals(input: {
+  workspaceId: string;
+  stage?: string;
+  status?: string;
+}): Promise<DealRecord[]> {
+  const account = await bootstrapAccount();
+  if (input.stage !== undefined && !isDealStage(input.stage))
+    throw new Error("Unknown deal stage.");
+  if (input.status !== undefined && !isDealStatus(input.status)) {
+    throw new Error("Unknown deal status.");
+  }
+  return withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "deal.read");
+    const filters = [eq(deals.workspaceId, input.workspaceId)];
+    if (input.stage) filters.push(eq(deals.stage, input.stage));
+    if (input.status) filters.push(eq(deals.status, input.status));
+    const rows = await db
+      .select()
+      .from(deals)
+      .where(and(...filters))
+      .orderBy(desc(deals.updatedAt))
+      .limit(200);
+    return rows.map(toDealRecord);
+  });
+}
+
+export async function getDeal(dealId: string): Promise<DealRecord> {
+  const account = await bootstrapAccount();
+  return withActor(account.user.id, async (db) => {
+    const row = (await db.select().from(deals).where(eq(deals.id, dealId)).limit(1))[0];
+    if (!row) throw new Error("Deal not found.");
+    await requireCapability(db, account.user.id, row.workspaceId, "deal.read");
+    return toDealRecord(row);
+  });
+}
+
+export async function updateDealStage(input: {
+  dealId: string;
+  workspaceId: string;
+  stage: string;
+}): Promise<DealRecord> {
+  const account = await bootstrapAccount();
+  if (!isDealStage(input.stage)) throw new Error("Unknown deal stage.");
+  return withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "deal.write");
+    const current = (await db.select().from(deals).where(eq(deals.id, input.dealId)).limit(1))[0];
+    if (!current || current.workspaceId !== input.workspaceId) throw new Error("Deal not found.");
+    await db
+      .update(deals)
+      .set({ stage: input.stage, updatedAt: new Date() })
+      .where(and(eq(deals.id, input.dealId), eq(deals.workspaceId, input.workspaceId)));
+    const updated = (await db.select().from(deals).where(eq(deals.id, input.dealId)).limit(1))[0];
+    if (!updated) throw new Error("Deal not found.");
+    await recordEvent(db, account, {
+      workspaceId: input.workspaceId,
+      eventType: "deal.stage_updated",
+      entityType: "deal",
+      entityId: input.dealId,
+      payload: { stage: input.stage },
+    });
+    return toDealRecord(updated);
+  });
 }
 
 export async function uploadWorkspaceFile(workspaceId: string, file: File): Promise<string> {

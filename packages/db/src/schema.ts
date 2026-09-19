@@ -250,6 +250,27 @@ export const planSteps = zeus.table("plan_steps", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// CRM pipeline record. Deal-Room is conversation_id (existing conversations).
+// Agent-Runs stay on zeus.runs / plan_steps (and task_runs when work is a task).
+export const deals = zeus.table("deals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspaces.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  stage: text("stage").notNull().default("lead"),
+  valueCents: integer("value_cents"),
+  currency: text("currency"),
+  ownerUserId: text("owner_user_id")
+    .notNull()
+    .references(() => users.id),
+  conversationId: uuid("conversation_id").references(() => conversations.id, {
+    onDelete: "set null",
+  }),
+  status: text("status").notNull().default("open"),
+  ...timestamps,
+});
+
 export const workspaceFiles = zeus.table("files", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id")
