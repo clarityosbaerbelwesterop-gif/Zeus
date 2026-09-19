@@ -4,6 +4,7 @@ import { requireSession } from "@zeus/auth/server";
 import {
   agentTemplates,
   apiTokens,
+  approvalRequests,
   artifacts,
   auditEvents,
   connections,
@@ -922,6 +923,110 @@ export async function updateDealStage(input: {
   });
 }
 
+export async function sendDealThreadMessage(input: {
+  workspaceId: string;
+  dealId: string;
+  conversationId: string;
+  content: string;
+}): Promise<string> {
+  const account = await bootstrapAccount();
+  const text = messageSchema.parse(input.content);
+  return withActor(account.user.id, async (db) => {
+    await requireCapability(db, account.user.id, input.workspaceId, "conversation.write");
+    const deal = (
+      await db
+        .select()
+        .from(deals)
+        .where(and(eq(deals.id, input.dealId), eq(deals.workspaceId, input.workspaceId)))
+        .limit(1)
+    )[0];
+    if (!deal || deal.conversationId !== input.conversationId) {
+      throw new Error("Deal not found.");
+    }
+    const [recentRow] = await db
+      .select({ value: count() })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.authorId, account.user.id),
+          sql`${messages.createdAt} >= ${new Date(Date.now() - 60_000)}`,
+        ),
+      );
+    if ((recentRow?.value ?? 0) >= 30) {
+      throw new Error("Message rate limit reached. Try again in a minute.");
+    }
+    const messageId = randomUUID();
+    await db.insert(messages).values({
+      id: messageId,
+      conversationId: input.conversationId,
+      authorId: account.user.id,
+      role: "user",
+      kind: "message",
+      content: text,
+      status: "complete",
+    });
+    await recordEvent(db, account, {
+      workspaceId: input.workspaceId,
+      eventType: "message.created",
+      entityType: "message",
+      entityId: messageId,
+      payload: { dealId: input.dealId },
+    });
+    return messageId;
+  });
+}
+
+const ACTIVE_DEAL_RUN_STATUSES = new Set([
+  "queued",
+  "preparing",
+  "running",
+  "waiting",
+  "verifying",
+  "paused",
+  "needs_user_input",
+  "needs_authorization",
+]);
+
+function dealNextStep(
+  deal: { conversationId: string | null },
+  runRows: readonly {
+    conversationId: string | null;
+    status: string;
+    agentCode: string;
+    objective: string;
+  }[],
+  planStepRows: readonly {
+    status: string;
+    title: string;
+    assignedAgent: string | null;
+  }[],
+  agentRows: readonly { code: string; name: string; enabled: boolean }[],
+): string {
+  const linked = deal.conversationId
+    ? runRows.filter((run) => run.conversationId === deal.conversationId)
+    : [];
+  const current =
+    linked.find((run) => ACTIVE_DEAL_RUN_STATUSES.has(run.status)) ?? linked[0] ?? null;
+  if (current) {
+    const agentName =
+      agentRows.find((agent) => agent.code === current.agentCode)?.name ?? current.agentCode;
+    const snippet = current.objective.replace(/\s+/gu, " ").trim().slice(0, 72);
+    return `${agentName} · ${current.status.replaceAll("_", " ")}${snippet ? ` · ${snippet}` : ""}`;
+  }
+  const openStep = planStepRows.find((step) => !["completed", "cancelled"].includes(step.status));
+  if (openStep) {
+    const agentName = openStep.assignedAgent
+      ? (agentRows.find((agent) => agent.code === openStep.assignedAgent)?.name ??
+        openStep.assignedAgent)
+      : "Plan";
+    return `${agentName} · ${openStep.title}`;
+  }
+  const fallback =
+    agentRows.find((agent) => agent.enabled && agent.code === "sara") ??
+    agentRows.find((agent) => agent.enabled);
+  return fallback ? `${fallback.name} · bereit` : "Kein Agent aktiv";
+}
+
 export async function uploadWorkspaceFile(workspaceId: string, file: File): Promise<string> {
   const account = await bootstrapAccount();
   const filename = validateUpload({
@@ -1295,7 +1400,16 @@ export async function getWorkspaceContext(workspaceId: string): Promise<Workspac
 }
 
 interface SearchItem {
-  type: "workspace" | "conversation" | "message" | "task" | "plan" | "file" | "artifact" | "memory";
+  type:
+    | "workspace"
+    | "conversation"
+    | "message"
+    | "task"
+    | "plan"
+    | "deal"
+    | "file"
+    | "artifact"
+    | "memory";
   id: string;
   workspaceId: string;
   title: string;
@@ -1311,74 +1425,87 @@ async function searchWorkspace(
   if (query.length < 2) return [];
   const match = (left: unknown) =>
     sql<boolean>`to_tsvector('simple', ${left}) @@ websearch_to_tsquery('simple', ${query})`;
-  const [conversationRows, messageRows, taskRows, planRows, fileRows, artifactRows, memoryRows] =
-    await Promise.all([
-      db
-        .select({ id: conversations.id, title: conversations.title })
-        .from(conversations)
-        .where(and(eq(conversations.workspaceId, workspaceId), match(conversations.title)))
-        .limit(6),
-      db
-        .select({
-          id: messages.id,
-          content: messages.content,
-          conversationId: messages.conversationId,
-        })
-        .from(messages)
-        .innerJoin(conversations, eq(conversations.id, messages.conversationId))
-        .where(and(eq(conversations.workspaceId, workspaceId), match(messages.content)))
-        .limit(6),
-      db
-        .select({ id: tasks.id, title: tasks.title, description: tasks.description })
-        .from(tasks)
-        .where(
-          and(
-            eq(tasks.workspaceId, workspaceId),
-            match(sql`${tasks.title} || ' ' || ${tasks.description}`),
-          ),
-        )
-        .limit(6),
-      db
-        .select({ id: plans.id, title: plans.title, objective: plans.objective })
-        .from(plans)
-        .where(
-          and(
-            eq(plans.workspaceId, workspaceId),
-            match(sql`${plans.title} || ' ' || ${plans.objective}`),
-          ),
-        )
-        .limit(6),
-      db
-        .select({
-          id: workspaceFiles.id,
-          filename: workspaceFiles.filename,
-          contentType: workspaceFiles.contentType,
-        })
-        .from(workspaceFiles)
-        .where(and(eq(workspaceFiles.workspaceId, workspaceId), match(workspaceFiles.filename)))
-        .limit(6),
-      db
-        .select({ id: artifacts.id, title: artifacts.title, kind: artifacts.kind })
-        .from(artifacts)
-        .where(and(eq(artifacts.workspaceId, workspaceId), match(artifacts.title)))
-        .limit(6),
-      db
-        .select({
-          id: memoryEntries.id,
-          title: memoryEntries.title,
-          content: memoryEntries.content,
-          type: memoryEntries.type,
-        })
-        .from(memoryEntries)
-        .where(
-          and(
-            eq(memoryEntries.workspaceId, workspaceId),
-            isNull(memoryEntries.archivedAt),
-            match(sql`${memoryEntries.title} || ' ' || ${memoryEntries.content}`),
-          ),
-        )
-        .limit(6),
-    ]);
+  const [
+    conversationRows,
+    messageRows,
+    taskRows,
+    planRows,
+    fileRows,
+    artifactRows,
+    memoryRows,
+    dealRows,
+  ] = await Promise.all([
+    db
+      .select({ id: conversations.id, title: conversations.title })
+      .from(conversations)
+      .where(and(eq(conversations.workspaceId, workspaceId), match(conversations.title)))
+      .limit(6),
+    db
+      .select({
+        id: messages.id,
+        content: messages.content,
+        conversationId: messages.conversationId,
+      })
+      .from(messages)
+      .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+      .where(and(eq(conversations.workspaceId, workspaceId), match(messages.content)))
+      .limit(6),
+    db
+      .select({ id: tasks.id, title: tasks.title, description: tasks.description })
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.workspaceId, workspaceId),
+          match(sql`${tasks.title} || ' ' || ${tasks.description}`),
+        ),
+      )
+      .limit(6),
+    db
+      .select({ id: plans.id, title: plans.title, objective: plans.objective })
+      .from(plans)
+      .where(
+        and(
+          eq(plans.workspaceId, workspaceId),
+          match(sql`${plans.title} || ' ' || ${plans.objective}`),
+        ),
+      )
+      .limit(6),
+    db
+      .select({
+        id: workspaceFiles.id,
+        filename: workspaceFiles.filename,
+        contentType: workspaceFiles.contentType,
+      })
+      .from(workspaceFiles)
+      .where(and(eq(workspaceFiles.workspaceId, workspaceId), match(workspaceFiles.filename)))
+      .limit(6),
+    db
+      .select({ id: artifacts.id, title: artifacts.title, kind: artifacts.kind })
+      .from(artifacts)
+      .where(and(eq(artifacts.workspaceId, workspaceId), match(artifacts.title)))
+      .limit(6),
+    db
+      .select({
+        id: memoryEntries.id,
+        title: memoryEntries.title,
+        content: memoryEntries.content,
+        type: memoryEntries.type,
+      })
+      .from(memoryEntries)
+      .where(
+        and(
+          eq(memoryEntries.workspaceId, workspaceId),
+          isNull(memoryEntries.archivedAt),
+          match(sql`${memoryEntries.title} || ' ' || ${memoryEntries.content}`),
+        ),
+      )
+      .limit(6),
+    db
+      .select({ id: deals.id, title: deals.title, stage: deals.stage })
+      .from(deals)
+      .where(and(eq(deals.workspaceId, workspaceId), match(deals.title)))
+      .limit(6),
+  ]);
   return [
     ...conversationRows.map((row) => ({
       type: "conversation" as const,
@@ -1428,6 +1555,13 @@ async function searchWorkspace(
       workspaceId,
       title: row.title,
       detail: `${row.type} · ${row.content.slice(0, 100)}`,
+    })),
+    ...dealRows.map((row) => ({
+      type: "deal" as const,
+      id: row.id,
+      workspaceId,
+      title: row.title,
+      detail: `Deal · ${row.stage}`,
     })),
   ];
 }
@@ -1506,6 +1640,7 @@ export async function workspacePageData(
   view = "home",
   searchQuery = "",
   planId?: string,
+  dealId?: string,
 ) {
   const account = await bootstrapAccount();
   return withActor(account.user.id, async (db) => {
@@ -1548,6 +1683,10 @@ export async function workspacePageData(
         userPreferences: parseUserPreferences(undefined, account.user.name, account.user.email),
         searchResults: [] as SearchItem[],
         globalSearchResults: [] as SearchItem[],
+        deals: [],
+        activeDeal: null,
+        dealMessages: [],
+        dealApprovals: [],
       };
     }
     const membershipRole = await requireCapability(
@@ -1572,6 +1711,7 @@ export async function workspacePageData(
       connectionRows,
       apiTokenRows,
       skillRows,
+      dealRows,
     ] = await Promise.all([
       db.select().from(workspaceAgents).where(eq(workspaceAgents.workspaceId, activeWorkspace.id)),
       db.select().from(agentTemplates),
@@ -1671,6 +1811,12 @@ export async function workspacePageData(
           sql`(${skills.workspaceId} = ${activeWorkspace.id} or ${skills.workspaceId} is null)`,
         )
         .orderBy(desc(skills.updatedAt)),
+      db
+        .select()
+        .from(deals)
+        .where(eq(deals.workspaceId, activeWorkspace.id))
+        .orderBy(desc(deals.updatedAt))
+        .limit(200),
     ]);
 
     const participantRows = conversationRows.length
@@ -1743,6 +1889,67 @@ export async function workspacePageData(
       account.user.name,
       account.user.email,
     );
+    const pageDeals = dealRows.map((row) => {
+      const record = toDealRecord(row);
+      const owner = userMap.get(record.ownerUserId);
+      return {
+        ...record,
+        ownerName: owner?.name || owner?.email || record.ownerUserId,
+        nextStep: dealNextStep(record, runRows, activePlanSteps, agents),
+      };
+    });
+    const activeDeal = dealId ? (pageDeals.find((deal) => deal.id === dealId) ?? null) : null;
+    const dealConversationRuns = activeDeal?.conversationId
+      ? await db
+          .select()
+          .from(runs)
+          .where(
+            and(
+              eq(runs.workspaceId, activeWorkspace.id),
+              eq(runs.conversationId, activeDeal.conversationId),
+            ),
+          )
+          .orderBy(desc(runs.createdAt))
+          .limit(30)
+      : [];
+    const runMap = new Map(runRows.map((run) => [run.id, run]));
+    for (const run of dealConversationRuns) runMap.set(run.id, run);
+    const pageRuns = [...runMap.values()].sort(
+      (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+    );
+    const dealMessages = activeDeal?.conversationId
+      ? (
+          await db
+            .select()
+            .from(messages)
+            .where(eq(messages.conversationId, activeDeal.conversationId))
+            .orderBy(desc(messages.createdAt))
+            .limit(100)
+        ).reverse()
+      : [];
+    const dealRunIds = activeDeal?.conversationId
+      ? pageRuns
+          .filter((run) => run.conversationId === activeDeal.conversationId)
+          .map((run) => run.id)
+      : [];
+    const dealApprovals = dealRunIds.length
+      ? await db
+          .select()
+          .from(approvalRequests)
+          .where(
+            and(
+              eq(approvalRequests.workspaceId, activeWorkspace.id),
+              inArray(approvalRequests.runId, dealRunIds),
+            ),
+          )
+          .orderBy(desc(approvalRequests.createdAt))
+          .limit(30)
+      : [];
+    const dealCards = pageDeals.map((deal) => ({
+      ...deal,
+      nextStep: dealNextStep(deal, pageRuns, activePlanSteps, agents),
+    }));
+    const selectedDeal = dealId ? (dealCards.find((deal) => deal.id === dealId) ?? null) : null;
 
     return {
       account,
@@ -1756,7 +1963,7 @@ export async function workspacePageData(
       participants: participantRows,
       activeConversation: activeConversation ?? null,
       messages: messageRows,
-      runs: runRows.slice(0, 12),
+      runs: pageRuns,
       steps: stepRows,
       tasks: taskRows,
       plans: planRows,
@@ -1775,6 +1982,10 @@ export async function workspacePageData(
       userPreferences,
       searchResults,
       globalSearchResults,
+      deals: dealCards,
+      activeDeal: selectedDeal,
+      dealMessages,
+      dealApprovals,
     };
   });
 }

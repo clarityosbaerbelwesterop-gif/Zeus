@@ -2,14 +2,22 @@
 
 import type { AgentCode } from "@zeus/agents";
 import { requireSession } from "@zeus/auth/server";
-import { isMemoryType, isTaskPriority, isTaskStatus, isWorkspaceRole } from "@zeus/workspace";
+import {
+  isDealStage,
+  isMemoryType,
+  isTaskPriority,
+  isTaskStatus,
+  isWorkspaceRole,
+} from "@zeus/workspace";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { parseFormValueCents } from "@/lib/crm-copy";
 import { assertTrustedMutationOrigin } from "@/lib/trusted-origin";
 import { approveAndExecuteRepositoryChangeRequest } from "@/lib/kai-coding-tools";
 import {
   retryAgentRun,
   sendConversationMessageAndRun,
+  startDealAgentRun,
   startTaskRun,
   stopAgentRun,
 } from "@/lib/agent-runtime";
@@ -20,6 +28,7 @@ import {
   createApiToken,
   createArtifact,
   createConversation,
+  createDeal,
   createMemory,
   createPlan,
   createTask,
@@ -28,9 +37,11 @@ import {
   revokeApiToken,
   saveIntegrationConnection,
   saveUserPreferences,
+  sendDealThreadMessage,
   setSkillLifecycle,
   testIntegrationConnection,
   toggleWorkspaceAgent,
+  updateDealStage,
   updateMemory,
   updateTask,
   updateWorkspace,
@@ -55,10 +66,23 @@ function agent(value: FormDataEntryValue | null): AgentCode | null {
   return agentCodes.has(value as AgentCode) ? (value as AgentCode) : null;
 }
 
-function workspaceLocation(workspaceId: string, view?: string): string {
+function workspaceLocation(
+  workspaceId: string,
+  view?: string,
+  extra?: Record<string, string>,
+): string {
   const params = new URLSearchParams({ workspace: workspaceId });
   if (view) params.set("view", view);
+  if (extra) {
+    for (const [key, value] of Object.entries(extra)) {
+      if (value) params.set(key, value);
+    }
+  }
   return `/app?${params.toString()}`;
+}
+
+function dealRoomLocation(workspaceId: string, dealId: string, view?: string): string {
+  return workspaceLocation(workspaceId, view || "deal-room", { deal: dealId });
 }
 
 export async function createWorkspaceAction(formData: FormData) {
@@ -143,6 +167,10 @@ export async function stopRunAction(formData: FormData) {
   const workspaceId = field(formData, "workspaceId");
   await stopAgentRun(field(formData, "runId"));
   revalidatePath("/app");
+  const dealId = optionalField(formData, "dealId");
+  if (dealId) {
+    redirect(dealRoomLocation(workspaceId, dealId, optionalField(formData, "view") ?? undefined));
+  }
   const conversationId = optionalField(formData, "conversationId");
   if (conversationId) redirect(`/app?workspace=${workspaceId}&conversation=${conversationId}`);
   redirect(workspaceLocation(workspaceId, optionalField(formData, "view") ?? undefined));
@@ -153,9 +181,72 @@ export async function retryRunAction(formData: FormData) {
   const workspaceId = field(formData, "workspaceId");
   await retryAgentRun(field(formData, "runId"));
   revalidatePath("/app");
+  const dealId = optionalField(formData, "dealId");
+  if (dealId) {
+    redirect(dealRoomLocation(workspaceId, dealId, optionalField(formData, "view") ?? undefined));
+  }
   const conversationId = optionalField(formData, "conversationId");
   if (conversationId) redirect(`/app?workspace=${workspaceId}&conversation=${conversationId}`);
   redirect(workspaceLocation(workspaceId, optionalField(formData, "view") ?? undefined));
+}
+
+export async function createDealAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
+  const workspaceId = field(formData, "workspaceId");
+  const title = field(formData, "title");
+  const valueCents = parseFormValueCents(field(formData, "value"));
+  const conversationId = await createConversation(workspaceId, null, title);
+  const dealId = await createDeal({
+    workspaceId,
+    title,
+    ownerUserId: optionalField(formData, "ownerUserId"),
+    conversationId,
+    valueCents,
+    currency: valueCents === null ? null : "EUR",
+  });
+  revalidatePath("/app");
+  redirect(dealRoomLocation(workspaceId, dealId));
+}
+
+export async function updateDealStageAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
+  const workspaceId = field(formData, "workspaceId");
+  const dealId = field(formData, "dealId");
+  const stage = field(formData, "stage");
+  if (!isDealStage(stage)) throw new Error("Unknown deal stage.");
+  await updateDealStage({ dealId, workspaceId, stage });
+  revalidatePath("/app");
+  const view = optionalField(formData, "view");
+  if (view === "deal-room") redirect(dealRoomLocation(workspaceId, dealId));
+  redirect(workspaceLocation(workspaceId, "pipeline"));
+}
+
+export async function sendDealMessageAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
+  const workspaceId = field(formData, "workspaceId");
+  const dealId = field(formData, "dealId");
+  await sendDealThreadMessage({
+    workspaceId,
+    dealId,
+    conversationId: field(formData, "conversationId"),
+    content: field(formData, "message"),
+  });
+  revalidatePath("/app");
+  redirect(dealRoomLocation(workspaceId, dealId));
+}
+
+export async function startDealAgentRunAction(formData: FormData) {
+  await assertTrustedMutationOrigin();
+  const workspaceId = field(formData, "workspaceId");
+  const dealId = field(formData, "dealId");
+  await startDealAgentRun(
+    workspaceId,
+    dealId,
+    field(formData, "instruction"),
+    agent(formData.get("agentCode")),
+  );
+  revalidatePath("/app");
+  redirect(dealRoomLocation(workspaceId, dealId));
 }
 
 export async function createTaskAction(formData: FormData) {

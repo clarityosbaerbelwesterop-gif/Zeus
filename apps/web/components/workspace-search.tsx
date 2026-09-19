@@ -17,7 +17,7 @@ export function SearchView({ data }: { data: WorkspacePageData }) {
       <SectionHeader
         eyebrow="Search"
         title="Find work, not tables"
-        detail="Workspace search covers conversations, messages, tasks, plans, files, artifacts and memory. Global results stay clearly separated."
+        detail="Workspace search covers conversations, messages, deals, tasks, plans, files, artifacts and memory. Global results stay clearly separated."
       />
       <form method="get" action="/app" className="mb-7 flex gap-2">
         <input type="hidden" name="workspace" value={workspace.id} />

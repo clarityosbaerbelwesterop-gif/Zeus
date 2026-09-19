@@ -95,6 +95,10 @@ a {
   align-items: start;
 }
 
+.pipeline-board {
+  overflow-x: auto;
+}
+
 .task-board > section {
   min-height: 120px;
 }
