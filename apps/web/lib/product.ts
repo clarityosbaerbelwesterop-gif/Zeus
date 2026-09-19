@@ -1027,6 +1027,12 @@ function dealNextStep(
   return fallback ? `${fallback.name} · bereit` : "Kein Agent aktiv";
 }
 
+function createdAtTime(value: Date | string | null | undefined): number {
+  const date = value instanceof Date ? value : new Date(typeof value === "string" ? value : 0);
+  const time = date.getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
 export async function uploadWorkspaceFile(workspaceId: string, file: File): Promise<string> {
   const account = await bootstrapAccount();
   const filename = validateUpload({
@@ -1915,7 +1921,7 @@ export async function workspacePageData(
     const runMap = new Map(runRows.map((run) => [run.id, run]));
     for (const run of dealConversationRuns) runMap.set(run.id, run);
     const pageRuns = [...runMap.values()].sort(
-      (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      (left, right) => createdAtTime(right.createdAt) - createdAtTime(left.createdAt),
     );
     const dealMessages = activeDeal?.conversationId
       ? (
