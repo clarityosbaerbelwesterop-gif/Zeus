@@ -74,7 +74,7 @@ BEGIN
     INSERT INTO zeus.deals(workspace_id,title,owner_user_id,conversation_id)
     VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','Forbidden room','rls-user-a','b6000000-0000-4000-8000-000000000006');
     RAISE EXCEPTION 'cross-tenant deal conversation unexpectedly allowed';
-  EXCEPTION WHEN foreign_key_violation THEN NULL; END;
+  EXCEPTION WHEN foreign_key_violation OR insufficient_privilege THEN NULL; END;
   BEGIN
     UPDATE zeus.workspace_members SET role='member'
       WHERE workspace_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND user_id='rls-user-a';
