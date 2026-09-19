@@ -16,8 +16,10 @@ export function workspaceHref(
   return `/app?${params.toString()}`;
 }
 
-export function timeLabel(value: Date | string): string {
-  const date = value instanceof Date ? value : new Date(value);
+export function timeLabel(value: Date | string | null | undefined): string {
+  const date =
+    value instanceof Date ? value : new Date(typeof value === "string" ? value : Number.NaN);
+  if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
