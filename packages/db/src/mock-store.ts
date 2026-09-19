@@ -907,6 +907,21 @@ class MockDatabase {
       for (const row of matchedRows) {
         Object.assign(row, updates);
       }
+      const returningMatch = normalizedSql.match(/\breturning\s+(.*)$/i);
+      if (returningMatch && returningMatch[1]) {
+        const retCols = returningMatch[1]
+          .split(",")
+          .map((s) => s.trim().replace(/["']/g, ""))
+          .filter(Boolean);
+        const rows = matchedRows.map((row) => {
+          if (isArrayMode) return retCols.map((col) => row[col]);
+          if (retCols.length === 1 && retCols[0] === "*") return row;
+          const obj: Row = {};
+          for (const col of retCols) obj[col] = row[col];
+          return obj;
+        });
+        return { rows, rowCount: rows.length };
+      }
       return { rows: [], rowCount: matchedRows.length };
     }
 
@@ -1016,77 +1031,86 @@ class MockDatabase {
   private filterRows(rows: Row[], whereClause?: string, values?: any[]): Row[] {
     if (!whereClause) return [...rows];
 
-    // Split by AND (case-insensitive)
     const conditions = whereClause.split(/\s+and\s+/i);
 
     return rows.filter((row) => {
-      for (const cond of conditions) {
-        // "col" >= $1, <= $1, > $1, < $1, != $1, = $1
-        const cmpParamMatch = cond.match(/"?([a-z0-9_]+)"?\s*(>=|<=|!=|<>|>|<|=)\s*\$(\d+)/i);
-        if (cmpParamMatch && cmpParamMatch[1] && cmpParamMatch[2] && cmpParamMatch[3]) {
-          const col = cmpParamMatch[1];
-          const op = cmpParamMatch[2];
-          const valIdx = parseInt(cmpParamMatch[3], 10) - 1;
-          const targetVal = values ? values[valIdx] : undefined;
-          const rowVal = row[col];
-
-          if (op === "=") {
-            if (rowVal !== targetVal) return false;
-          } else if (op === "!=" || op === "<>") {
-            if (rowVal === targetVal) return false;
-          } else {
-            const rTime = rowVal instanceof Date ? rowVal.getTime() : rowVal;
-            const tTime = targetVal instanceof Date ? targetVal.getTime() : targetVal;
-            if (op === ">=" && !(rTime >= tTime)) return false;
-            if (op === "<=" && !(rTime <= tTime)) return false;
-            if (op === ">" && !(rTime > tTime)) return false;
-            if (op === "<" && !(rTime < tTime)) return false;
-          }
+      for (const rawCond of conditions) {
+        const cond = rawCond.trim().replace(/^\(+/, "").replace(/\)+$/, "");
+        if (/\bor\b/i.test(cond)) {
+          const parts = cond
+            .split(/\s+or\s+/i)
+            .map((part) => part.trim().replace(/^\(+/, "").replace(/\)+$/, ""));
+          if (!parts.some((part) => this.rowMatchesCondition(row, part, values))) return false;
           continue;
         }
-
-        // "col" is null
-        const isNullMatch = cond.match(/"?([a-z0-9_]+)"?\s+is\s+null/i);
-        if (isNullMatch && isNullMatch[1]) {
-          const col = isNullMatch[1];
-          if (row[col] != null) return false;
-          continue;
-        }
-
-        // "col" is not null
-        const isNotNullMatch = cond.match(/"?([a-z0-9_]+)"?\s+is\s+not\s+null/i);
-        if (isNotNullMatch && isNotNullMatch[1]) {
-          const col = isNotNullMatch[1];
-          if (row[col] == null) return false;
-          continue;
-        }
-
-        // "col" in ($1, $2, ...)
-        const inMatch = cond.match(/"?([a-z0-9_]+)"?\s+in\s*\(([^)]+)\)/i);
-        if (inMatch && inMatch[1] && inMatch[2]) {
-          const col = inMatch[1];
-          const phs = inMatch[2].split(",").map((s) => s.trim());
-          const targetVals = phs.map((ph) => {
-            if (ph.startsWith("$") && values) {
-              return values[parseInt(ph.slice(1), 10) - 1];
-            }
-            return ph.replace(/['"]/g, "");
-          });
-          if (!targetVals.includes(row[col])) return false;
-          continue;
-        }
-
-        // "col" = 'literal'
-        const eqLitMatch = cond.match(/"?([a-z0-9_]+)"?\s*=\s*['"](.*?)['"]/i);
-        if (eqLitMatch && eqLitMatch[1] && eqLitMatch[2]) {
-          const col = eqLitMatch[1];
-          const val = eqLitMatch[2];
-          if (String(row[col]) !== val) return false;
-          continue;
-        }
+        if (!this.rowMatchesCondition(row, cond, values)) return false;
       }
       return true;
     });
+  }
+
+  private rowMatchesCondition(row: Row, cond: string, values?: any[]): boolean {
+    const nowCmp = cond.match(/"?([a-z0-9_]+)"?\s*(>=|<=|>|<)\s*now\(\)/i);
+    if (nowCmp && nowCmp[1] && nowCmp[2]) {
+      const rowVal = row[nowCmp[1]];
+      const rTime = rowVal instanceof Date ? rowVal.getTime() : Number.NaN;
+      const tTime = Date.now();
+      if (!Number.isFinite(rTime)) return false;
+      if (nowCmp[2] === ">=" && !(rTime >= tTime)) return false;
+      if (nowCmp[2] === "<=" && !(rTime <= tTime)) return false;
+      if (nowCmp[2] === ">" && !(rTime > tTime)) return false;
+      if (nowCmp[2] === "<" && !(rTime < tTime)) return false;
+      return true;
+    }
+
+    const cmpParamMatch = cond.match(/"?([a-z0-9_]+)"?\s*(>=|<=|!=|<>|>|<|=)\s*\$(\d+)/i);
+    if (cmpParamMatch && cmpParamMatch[1] && cmpParamMatch[2] && cmpParamMatch[3]) {
+      const col = cmpParamMatch[1];
+      const op = cmpParamMatch[2];
+      const valIdx = parseInt(cmpParamMatch[3], 10) - 1;
+      const targetVal = values ? values[valIdx] : undefined;
+      const rowVal = row[col];
+
+      if (op === "=") return rowVal === targetVal;
+      if (op === "!=" || op === "<>") return rowVal !== targetVal;
+      const rTime = rowVal instanceof Date ? rowVal.getTime() : rowVal;
+      const tTime = targetVal instanceof Date ? targetVal.getTime() : targetVal;
+      if (op === ">=") return rTime >= tTime;
+      if (op === "<=") return rTime <= tTime;
+      if (op === ">") return rTime > tTime;
+      if (op === "<") return rTime < tTime;
+      return false;
+    }
+
+    const isNullMatch = cond.match(/"?([a-z0-9_]+)"?\s+is\s+null/i);
+    if (isNullMatch && isNullMatch[1]) {
+      return row[isNullMatch[1]] == null;
+    }
+
+    const isNotNullMatch = cond.match(/"?([a-z0-9_]+)"?\s+is\s+not\s+null/i);
+    if (isNotNullMatch && isNotNullMatch[1]) {
+      return row[isNotNullMatch[1]] != null;
+    }
+
+    const inMatch = cond.match(/"?([a-z0-9_]+)"?\s+in\s*\(([^)]+)\)/i);
+    if (inMatch && inMatch[1] && inMatch[2]) {
+      const col = inMatch[1];
+      const phs = inMatch[2].split(",").map((s) => s.trim());
+      const targetVals = phs.map((ph) => {
+        if (ph.startsWith("$") && values) {
+          return values[parseInt(ph.slice(1), 10) - 1];
+        }
+        return ph.replace(/['"]/g, "");
+      });
+      return targetVals.includes(row[col]);
+    }
+
+    const eqLitMatch = cond.match(/"?([a-z0-9_]+)"?\s*=\s*['"](.*?)['"]/i);
+    if (eqLitMatch && eqLitMatch[1] && eqLitMatch[2]) {
+      return String(row[eqLitMatch[1]]) === eqLitMatch[2];
+    }
+
+    return true;
   }
 }
 
