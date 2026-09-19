@@ -129,7 +129,29 @@ export async function checkDatabaseReadiness(): Promise<DatabaseReadiness> {
     await client.query("BEGIN");
     await client.query("SET LOCAL statement_timeout = '3s'");
     const result = await client.query(
-      "SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'zeus') AS schema_ready, EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'zeus_app' AND rolbypassrls = false) AS role_ready",
+      `SELECT
+        (
+          to_regnamespace('zeus') IS NOT NULL
+          AND to_regclass('zeus.workspaces') IS NOT NULL
+          AND to_regclass('zeus.runs') IS NOT NULL
+          AND to_regclass('zeus.companies') IS NOT NULL
+          AND to_regclass('zeus.missions') IS NOT NULL
+          AND to_regclass('zeus.skills') IS NOT NULL
+          AND to_regclass('zeus.skill_versions') IS NOT NULL
+          AND to_regclass('zeus.deals') IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'zeus'
+              AND c.relname IN ('companies','missions','skills','skill_versions','deals')
+              AND (c.relrowsecurity = false OR c.relforcerowsecurity = false)
+          )
+        ) AS schema_ready,
+        EXISTS (
+          SELECT 1 FROM pg_roles
+          WHERE rolname = 'zeus_app' AND rolbypassrls = false
+        ) AS role_ready`,
     );
     await client.query("COMMIT");
     const row = result.rows?.[0] ?? {};
